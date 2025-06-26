@@ -1,0 +1,50 @@
+#!/bin/bash
+
+# Script Docker portable pour Laravel
+CONTAINER="ecommerce-app-1"
+
+case $1 in
+    artisan)
+        shift
+        docker exec -it $CONTAINER php artisan "$@"
+        ;;
+    composer)
+        shift
+        docker exec -it $CONTAINER composer "$@"
+        ;;
+    php)
+        shift
+        docker exec -it $CONTAINER php "$@"
+        ;;
+    npm)
+        shift
+        docker exec -it $CONTAINER npm "$@"
+        ;;
+    shell|sh|bash)
+        docker exec -it $CONTAINER sh
+        ;;
+    tinker)
+        docker exec -it $CONTAINER php artisan tinker
+        ;;
+    migrate)
+        docker exec -it $CONTAINER php artisan migrate
+        ;;
+    fresh)
+        docker exec -it $CONTAINER php artisan migrate:fresh --seed
+        ;;
+    up)
+        docker-compose up -d
+        ;;
+    down)
+        docker-compose down
+        ;;
+    build)
+        docker-compose build --no-cache
+        ;;
+    logs)
+        docker-compose logs -f
+        ;;
+    *)
+        docker exec -it $CONTAINER "$@"
+        ;;
+esac
