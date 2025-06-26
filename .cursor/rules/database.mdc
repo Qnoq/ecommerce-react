@@ -1,0 +1,762 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Cursor AI Rules - Database Schema PostgreSQL E-commerce
+
+## 🎯 Contexte Database
+Tu travailles avec **PostgreSQL 17** pour un projet e-commerce Laravel avec toute la puissance PostgreSQL.
+
+### Configuration PostgreSQL Avancée
+- **Host** : `postgres` (container Docker)
+- **Port** : `5432`
+- **Database** : `ecommerce`
+- **User/Password** : `postgres`/`password`
+- **Charset** : `UTF8`
+- **Timezone** : `Europe/Paris`
+- **Extensions** : pgvector, pg_trgm, uuid-ossp, hstore
+
+### Extensions PostgreSQL Activées
+```sql
+-- Dans une migration séparée
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";      -- UUID generation
+CREATE EXTENSION IF NOT EXISTS "pg_trgm";        -- Trigram search
+CREATE EXTENSION IF NOT EXISTS "pgvector";       -- Vector similarity search
+CREATE EXTENSION IF NOT EXISTS "hstore";         -- Key-value storage
+CREATE EXTENSION IF NOT EXISTS "btree_gist";     -- Advanced indexing
+```
+
+## 🔧 Stratégie UUID + ID
+**Principe** : UUID public pour sécurité, ID incrémental interne pour performance.
+
+### Pattern UUID Mixte
+```php
+Schema::create('products', function (Blueprint $table) {
+    $table->id();                    // ID interne (performance, relations)
+    $table->uuid('uuid')->unique();  // UUID public (API, URLs)
+    // ... autres colonnes
+    
+    $table->index('uuid'); // Index sur UUID pour recherche publique
+});
+
+// Dans le modèle
+class Product extends Model 
+{
+    protected $fillable = ['uuid', /*...*/];
+    
+    // Boot pour auto-générer UUID
+    protected static function boot()
+    {
+        parent::boot();
+        static::creating(function ($model) {
+            $model->uuid = Str::uuid7(); // UUID v7 (ordonné)
+        });
+    }
+    
+    // Route model binding par UUID
+    public function getRouteKeyName()
+    {
+        return 'uuid';
+    }
+}
+```
+
+## 📊 Schéma E-commerce Standard
+
+### Tables Principales
+
+#### Users (Clients + Admins) - UUID Public
+```php
+Schema::create('users', function (Blueprint $table) {
+    $table->id();                                    // ID interne
+    $table->uuid('uuid')->unique();                  // UUID public
+    $table->string('name');
+    $table->string('email')->unique();
+    $table->timestamp('email_verified_at')->nullable();
+    $table->string('password');
+    $table->string('phone')->nullable();
+    $table->date('birth_date')->nullable();
+    $table->enum('role', ['customer', 'admin', 'manager'])->default('customer');
+    $table->boolean('is_active')->default(true);
+    $table->timestamp('last_login_at')->nullable();
+    $table->jsonb('preferences')->nullable();         // Préférences utilisateur (JSONB)
+    $table->vector('search_vector', 384)->nullable(); // Embeddings pour recherche sémantique
+    $table->rememberToken();
+    $table->timestamps();
+    $table->softDeletes();
+    
+    // Indexes PostgreSQL optimisés
+    $table->index('uuid');
+    $table->index(['email', 'is_active']);
+    $table->index('role');
+    $table->index('created_at');
+    $table->rawIndex('search_vector vector_cosine_ops', 'users_search_vector_idx'); // Index vector
+    $table->fullText(['name', 'email']); // Full-text search
+});
+```
+
+#### Categories (Hiérarchique) - UUID Public
+```php
+Schema::create('categories', function (Blueprint $table) {
+    $table->id();
+    $table->uuid('uuid')->unique();
+    $table->string('name');
+    $table->string('slug')->unique();
+    $table->text('description')->nullable();
+    $table->string('image')->nullable();
+    $table->unsignedBigInteger('parent_id')->nullable(); // ID interne pour performance
+    $table->integer('sort_order')->default(0);
+    $table->boolean('is_active')->default(true);
+    $table->string('seo_title')->nullable();
+    $table->text('seo_description')->nullable();
+    $table->jsonb('metadata')->nullable();            // Métadonnées flexibles
+    $table->vector('embedding', 1536)->nullable();    // Embeddings OpenAI
+    $table->timestamps();
+    
+    $table->foreign('parent_id')->references('id')->on('categories')->onDelete('set null');
+    $table->index('uuid');
+    $table->index(['parent_id', 'is_active', 'sort_order']);
+    $table->index('slug');
+    $table->rawIndex('embedding vector_cosine_ops', 'categories_embedding_idx');
+    $table->fullText(['name', 'description']);
+});
+```
+
+#### Products (Avec variants) - UUID Public + Vector Search
+```php
+Schema::create('products', function (Blueprint $table) {
+    $table->id();
+    $table->uuid('uuid')->unique();
+    $table->string('name');
+    $table->string('slug')->unique();
+    $table->text('description');
+    $table->text('short_description')->nullable();
+    $table->string('sku')->unique();
+    $table->decimal('price', 10, 2);
+    $table->decimal('compare_price', 10, 2)->nullable();
+    $table->decimal('cost_price', 10, 2)->nullable();
+    $table->integer('stock_quantity')->default(0);
+    $table->integer('min_stock_level')->default(5);
+    $table->decimal('weight', 8, 2)->nullable();
+    $table->jsonb('dimensions')->nullable();           // {length, width, height}
+    $table->jsonb('attributes')->nullable();           // Attributs dynamiques
+    $table->boolean('is_active')->default(true);
+    $table->boolean('is_featured')->default(false);
+    $table->boolean('track_stock')->default(true);
+    $table->enum('stock_status', ['in_stock', 'out_of_stock', 'on_backorder'])->default('in_stock');
+    $table->string('seo_title')->nullable();
+    $table->text('seo_description')->nullable();
+    $table->jsonb('meta_data')->nullable();
+    
+    // Vector embeddings pour recherche sémantique
+    $table->vector('description_embedding', 1536)->nullable(); // OpenAI embeddings
+    $table->vector('name_embedding', 384)->nullable();         // Sentence embeddings
+    
+    // Full-text search optimisé
+    $table->text('search_document')->nullable();               // Document de recherche généré
+    
+    $table->timestamps();
+    $table->softDeletes();
+    
+    // Indexes PostgreSQL avancés
+    $table->index('uuid');
+    $table->index(['is_active', 'is_featured']);
+    $table->index(['stock_status', 'stock_quantity']);
+    $table->index('slug');
+    $table->index('sku');
+    $table->index('price');
+    
+    // Vector similarity indexes
+    $table->rawIndex('description_embedding vector_cosine_ops', 'products_desc_embedding_idx');
+    $table->rawIndex('name_embedding vector_cosine_ops', 'products_name_embedding_idx');
+    
+    // GIN index pour JSONB
+    $table->rawIndex('attributes gin', 'products_attributes_gin_idx');
+    $table->rawIndex('dimensions gin', 'products_dimensions_gin_idx');
+    
+    // Full-text search avec poids
+    $table->fullText(['name', 'description', 'search_document']);
+    
+    // Contraintes PostgreSQL
+    DB::statement('ALTER TABLE products ADD CONSTRAINT check_price_positive CHECK (price >= 0)');
+    DB::statement('ALTER TABLE products ADD CONSTRAINT check_stock_non_negative CHECK (stock_quantity >= 0)');
+});
+```
+
+#### Product Categories (Many-to-Many)
+```php
+Schema::create('product_categories', function (Blueprint $table) {
+    $table->id();
+    $table->foreignId('product_id')->constrained()->onDelete('cascade');
+    $table->foreignId('category_id')->constrained()->onDelete('cascade');
+    $table->timestamps();
+    
+    $table->unique(['product_id', 'category_id']);
+    $table->index('category_id');
+});
+```
+
+#### Product Images
+```php
+Schema::create('product_images', function (Blueprint $table) {
+    $table->id();
+    $table->foreignId('product_id')->constrained()->onDelete('cascade');
+    $table->string('url');
+    $table->string('alt_text')->nullable();
+    $table->integer('sort_order')->default(0);
+    $table->boolean('is_primary')->default(false);
+    $table->timestamps();
+    
+    $table->index(['product_id', 'sort_order']);
+    $table->index(['product_id', 'is_primary']);
+});
+```
+
+#### Addresses (Livraison/Facturation)
+```php
+Schema::create('addresses', function (Blueprint $table) {
+    $table->id();
+    $table->foreignId('user_id')->constrained()->onDelete('cascade');
+    $table->string('type')->default('shipping'); // shipping, billing
+    $table->string('first_name');
+    $table->string('last_name');
+    $table->string('company')->nullable();
+    $table->string('address_line_1');
+    $table->string('address_line_2')->nullable();
+    $table->string('city');
+    $table->string('state')->nullable();
+    $table->string('postal_code');
+    $table->string('country', 2)->default('FR');
+    $table->string('phone')->nullable();
+    $table->boolean('is_default')->default(false);
+    $table->timestamps();
+    
+    $table->index(['user_id', 'type']);
+    $table->index(['user_id', 'is_default']);
+});
+```
+
+#### Orders (Commandes) - UUID Public
+```php
+Schema::create('orders', function (Blueprint $table) {
+    $table->id();
+    $table->uuid('uuid')->unique();
+    $table->string('order_number')->unique();
+    $table->unsignedBigInteger('user_id')->nullable(); // ID interne pour relations
+    $table->enum('status', [
+        'pending', 'confirmed', 'processing', 
+        'shipped', 'delivered', 'cancelled', 'refunded'
+    ])->default('pending');
+    $table->decimal('subtotal', 10, 2);
+    $table->decimal('tax_amount', 10, 2)->default(0);
+    $table->decimal('shipping_amount', 10, 2)->default(0);
+    $table->decimal('discount_amount', 10, 2)->default(0);
+    $table->decimal('total_amount', 10, 2);
+    $table->string('currency', 3)->default('EUR');
+    
+    // Adresses (JSONB pour performance)
+    $table->jsonb('shipping_address');
+    $table->jsonb('billing_address');
+    
+    // Paiement
+    $table->enum('payment_status', ['pending', 'paid', 'failed', 'refunded'])->default('pending');
+    $table->string('payment_method')->nullable();
+    $table->string('payment_reference')->nullable();
+    $table->jsonb('payment_metadata')->nullable();
+    
+    // Livraison
+    $table->string('shipping_method')->nullable();
+    $table->string('tracking_number')->nullable();
+    $table->timestamp('shipped_at')->nullable();
+    $table->timestamp('delivered_at')->nullable();
+    
+    // Analytics et recherche
+    $table->point('shipping_location')->nullable();      // Géolocalisation
+    $table->text('search_document')->nullable();         // Document de recherche
+    
+    $table->text('notes')->nullable();
+    $table->timestamps();
+    $table->softDeletes();
+    
+    $table->foreign('user_id')->references('id')->on('users')->onDelete('set null');
+    
+    // Indexes PostgreSQL avancés
+    $table->index('uuid');
+    $table->index(['status', 'created_at']);
+    $table->index(['user_id', 'status']);
+    $table->index('order_number');
+    $table->index('payment_status');
+    $table->index(['created_at', 'total_amount']); // Analytics
+    
+    // JSONB indexes
+    $table->rawIndex('shipping_address gin', 'orders_shipping_address_gin_idx');
+    $table->rawIndex('payment_metadata gin', 'orders_payment_metadata_gin_idx');
+    
+    // Géospatial index
+    $table->spatialIndex('shipping_location');
+    
+    // Full-text search
+    $table->fullText(['order_number', 'notes', 'search_document']);
+});
+```
+
+## 🔍 Recherche Vectorielle Avancée
+
+### Configuration pgvector
+```sql
+-- Dans une migration d'initialisation
+CREATE EXTENSION IF NOT EXISTS vector;
+
+-- Fonction de calcul de similarité
+CREATE OR REPLACE FUNCTION calculate_product_similarity(query_embedding vector(1536))
+RETURNS TABLE(product_id bigint, similarity float) AS $
+BEGIN
+    RETURN QUERY
+    SELECT 
+        p.id,
+        1 - (p.description_embedding <=> query_embedding) as similarity
+    FROM products p
+    WHERE p.description_embedding IS NOT NULL
+    ORDER BY p.description_embedding <=> query_embedding
+    LIMIT 20;
+END;
+$ LANGUAGE plpgsql;
+```
+
+### Recherche Hybride (Keyword + Vector)
+```php
+// Dans un Service de recherche
+class ProductSearchService
+{
+    public function hybridSearch(string $query, array $filters = [])
+    {
+        // 1. Générer embedding pour la requête
+        $embedding = OpenAI::embeddings()->create([
+            'model' => 'text-embedding-3-small',
+            'input' => $query
+        ])->embeddings[0]->embedding;
+        
+        // 2. Recherche hybride PostgreSQL
+        return DB::select("
+            WITH vector_search AS (
+                SELECT id, uuid, (1 - (description_embedding <=> ?::vector)) as vector_score
+                FROM products 
+                WHERE description_embedding IS NOT NULL
+                ORDER BY description_embedding <=> ?::vector
+                LIMIT 50
+            ),
+            text_search AS (
+                SELECT id, uuid, ts_rank(to_tsvector('french', name || ' ' || description), plainto_tsquery('french', ?)) as text_score
+                FROM products
+                WHERE to_tsvector('french', name || ' ' || description) @@ plainto_tsquery('french', ?)
+            )
+            SELECT 
+                p.*,
+                COALESCE(vs.vector_score, 0) * 0.6 + COALESCE(ts.text_score, 0) * 0.4 as combined_score
+            FROM products p
+            LEFT JOIN vector_search vs ON p.id = vs.id
+            LEFT JOIN text_search ts ON p.id = ts.id
+            WHERE (vs.id IS NOT NULL OR ts.id IS NOT NULL)
+            ORDER BY combined_score DESC
+            LIMIT 20
+        ", [$embedding, $embedding, $query, $query]);
+    }
+}
+```
+
+## 🚀 Fonctionnalités PostgreSQL Avancées
+
+### JSONB et Requêtes Dynamiques
+```php
+// Recherche dans attributs produits
+Product::whereJsonContains('attributes->colors', 'red')
+       ->whereJsonPath('dimensions', '$.length > 100')
+       ->get();
+
+// Index GIN pour performance
+Schema::table('products', function (Blueprint $table) {
+    $table->rawIndex('attributes gin', 'products_attributes_gin_idx');
+});
+```
+
+### Recherche Géospatiale
+```php
+// Points de livraison dans un rayon
+Order::selectRaw('*, ST_Distance(shipping_location, ST_Point(?, ?)) as distance')
+     ->whereRaw('ST_DWithin(shipping_location, ST_Point(?, ?), ?)', [$lat, $lng, $lat, $lng, $radius])
+     ->orderBy('distance')
+     ->get();
+```
+
+### Partitioning par Date
+```php
+// Dans migration
+Schema::create('orders_y2024m01', function (Blueprint $table) {
+    // Schema identique à orders...
+});
+
+DB::statement("
+    ALTER TABLE orders_y2024m01 
+    INHERIT orders;
+    
+    ALTER TABLE orders_y2024m01 
+    ADD CONSTRAINT orders_y2024m01_check 
+    CHECK (created_at >= '2024-01-01' AND created_at < '2024-02-01');
+");
+```
+
+### Recherche Full-text Multilingue
+```php
+// Configuration français + anglais
+DB::statement("
+    CREATE TEXT SEARCH CONFIGURATION french_english (COPY = french);
+    ALTER TEXT SEARCH CONFIGURATION french_english
+    ALTER MAPPING FOR word WITH french_stem, english_stem;
+");
+
+// Utilisation
+Product::whereRaw("to_tsvector('french_english', name || ' ' || description) @@ plainto_tsquery('french_english', ?)", [$query])
+       ->orderByRaw("ts_rank(to_tsvector('french_english', name || ' ' || description), plainto_tsquery('french_english', ?)) DESC", [$query])
+       ->get();
+```
+
+### Views Matérialisées pour Analytics
+```sql
+-- Vue pour analytics produits
+CREATE MATERIALIZED VIEW product_analytics AS
+SELECT 
+    p.id,
+    p.uuid,
+    p.name,
+    COUNT(oi.id) as total_orders,
+    SUM(oi.quantity) as total_quantity_sold,
+    AVG(oi.unit_price) as avg_selling_price,
+    MAX(o.created_at) as last_order_date
+FROM products p
+LEFT JOIN order_items oi ON p.id = oi.product_id
+LEFT JOIN orders o ON oi.order_id = o.id
+WHERE o.status IN ('delivered', 'shipped')
+GROUP BY p.id, p.uuid, p.name;
+
+-- Index sur vue matérialisée
+CREATE INDEX ON product_analytics (total_orders DESC);
+CREATE INDEX ON product_analytics (uuid);
+
+-- Refresh automatique (dans une commande cron)
+REFRESH MATERIALIZED VIEW CONCURRENTLY product_analytics;
+```
+
+#### Order Items
+```php
+Schema::create('order_items', function (Blueprint $table) {
+    $table->id();
+    $table->foreignId('order_id')->constrained()->onDelete('cascade');
+    $table->foreignId('product_id')->constrained()->onDelete('cascade');
+    $table->string('product_name'); // Snapshot au moment de la commande
+    $table->string('product_sku');
+    $table->decimal('unit_price', 10, 2);
+    $table->integer('quantity');
+    $table->decimal('total_price', 10, 2);
+    $table->json('product_options')->nullable(); // Couleur, taille, etc.
+    $table->timestamps();
+    
+    $table->index(['order_id']);
+    $table->index(['product_id']);
+});
+```
+
+#### Shopping Cart
+```php
+Schema::create('shopping_carts', function (Blueprint $table) {
+    $table->id();
+    $table->foreignId('user_id')->nullable()->constrained()->onDelete('cascade');
+    $table->string('session_id')->nullable();
+    $table->foreignId('product_id')->constrained()->onDelete('cascade');
+    $table->integer('quantity');
+    $table->json('product_options')->nullable();
+    $table->timestamps();
+    
+    $table->unique(['user_id', 'product_id', 'session_id']);
+    $table->index(['user_id']);
+    $table->index(['session_id']);
+    $table->index(['created_at']); // Pour cleanup sessions expirées
+});
+```
+
+## 🔧 Types PostgreSQL Optimisés
+
+### Colonnes JSON pour Métadonnées
+```php
+// Attributs produits dynamiques
+$table->json('attributes')->nullable(); // {color: 'red', size: 'L'}
+
+// Options de commande
+$table->json('product_options')->nullable();
+
+// Adresses complètes
+$table->json('shipping_address');
+```
+
+### ENUM vs Constantes
+```php
+// Prefer ENUM pour statuts fixes
+$table->enum('status', ['pending', 'confirmed', 'shipped']);
+
+// Alternative avec contraintes
+$table->string('status')->default('pending');
+// Ajouter constraint CHECK dans migration séparée
+```
+
+### Indexes Composites Intelligents
+```php
+// Performance e-commerce
+$table->index(['is_active', 'is_featured', 'created_at']);
+$table->index(['category_id', 'price', 'stock_quantity']);
+$table->index(['user_id', 'status', 'created_at']);
+
+// Full-text search PostgreSQL
+$table->fullText(['name', 'description']);
+```
+
+## 🚀 Patterns de Migration E-commerce
+
+### Migration Produit Complète
+```php
+public function up()
+{
+    Schema::create('products', function (Blueprint $table) {
+        // Structure de base...
+    });
+    
+    // Contraintes supplémentaires PostgreSQL
+    DB::statement('ALTER TABLE products ADD CONSTRAINT check_price_positive CHECK (price >= 0)');
+    DB::statement('ALTER TABLE products ADD CONSTRAINT check_stock_non_negative CHECK (stock_quantity >= 0)');
+}
+```
+
+### Relations Optimisées
+```php
+// Foreign keys avec options PostgreSQL
+$table->foreignId('category_id')
+      ->constrained()
+      ->onUpdate('cascade')
+      ->onDelete('restrict');
+
+// Index pour performance
+$table->index(['category_id', 'is_active']);
+```
+
+### Soft Deletes E-commerce
+```php
+// Toujours sur products, orders, users
+$table->softDeletes();
+
+// Index composite avec soft deletes
+$table->index(['deleted_at', 'is_active']);
+```
+
+## 📈 Optimisations PostgreSQL
+
+### Partitioning (Orders par mois)
+```sql
+-- Pour très gros volumes
+CREATE TABLE orders_2024_01 PARTITION OF orders
+FOR VALUES FROM ('2024-01-01') TO ('2024-02-01');
+```
+
+### Vacuum et Maintenance
+```php
+// Dans des commandes Artisan
+DB::statement('VACUUM ANALYZE orders');
+DB::statement('REINDEX INDEX orders_status_created_at_idx');
+```
+
+### Extensions PostgreSQL Utiles
+```sql
+-- Full-text search
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+-- UUID pour identifiants
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+```
+
+## 🎯 Commandes Migration E-commerce avec PostgreSQL
+
+```bash
+# Migration avec extensions PostgreSQL
+ddev artisan make:migration enable_postgresql_extensions
+ddev artisan make:migration create_vector_search_functions
+
+# Migrations avec UUID + Vector
+ddev artisan make:model Product -mcr --uuid
+ddev artisan make:model Category -mcr --uuid
+
+# Migration pour indexes avancés
+ddev artisan make:migration add_vector_indexes_to_products
+ddev artisan make:migration create_materialized_views
+
+# Rollback sécurisé avec contraintes
+ddev artisan migrate:rollback --step=5 --pretend
+
+# Status et debug PostgreSQL
+ddev artisan migrate:status
+ddev artisan migrate --pretend
+ddev artisan db:show --database=pgsql
+```
+
+## 🔧 Services et Packages PostgreSQL
+
+### Packages Laravel Recommandés
+```bash
+# Vector search et embeddings
+composer require openai-php/client
+composer require pgvector/pgvector-php
+
+# Recherche avancée
+composer require laravel/scout
+composer require meilisearch/meilisearch-php
+
+# Géospatial
+composer require grimzy/laravel-mysql-spatial
+
+# Analytics
+composer require spatie/laravel-analytics
+composer require spatie/laravel-query-builder
+```
+
+### Configuration Scout avec Vector
+```php
+// config/scout.php
+'engines' => [
+    'vector' => [
+        'driver' => 'vector',
+        'connection' => env('DB_CONNECTION', 'pgsql'),
+        'dimensions' => 1536, // OpenAI embedding size
+    ]
+]
+```
+
+## 🔍 Exemples Requêtes PostgreSQL Avancées
+
+### Recherche Sémantique Produits
+```php
+class ProductController extends Controller
+{
+    public function search(Request $request)
+    {
+        $query = $request->input('q');
+        
+        // Générer embedding
+        $embedding = OpenAI::embeddings()->create([
+            'model' => 'text-embedding-3-small',
+            'input' => $query
+        ])->embeddings[0]->embedding;
+        
+        // Recherche vectorielle + filtres
+        $products = DB::select("
+            SELECT 
+                p.*,
+                (1 - (p.description_embedding <=> ?::vector)) as similarity
+            FROM products p
+            WHERE p.is_active = true
+            AND p.description_embedding IS NOT NULL
+            AND (1 - (p.description_embedding <=> ?::vector)) > 0.7
+            ORDER BY p.description_embedding <=> ?::vector
+            LIMIT 20
+        ", [$embedding, $embedding, $embedding]);
+        
+        return ProductResource::collection($products);
+    }
+}
+```
+
+### Analytics avec Window Functions
+```php
+// Top produits avec évolution
+$analytics = DB::select("
+    SELECT 
+        p.uuid,
+        p.name,
+        COUNT(oi.id) as total_orders,
+        SUM(oi.total_price) as revenue,
+        LAG(SUM(oi.total_price)) OVER (ORDER BY DATE_TRUNC('month', o.created_at)) as prev_month_revenue,
+        RANK() OVER (ORDER BY SUM(oi.total_price) DESC) as revenue_rank
+    FROM products p
+    JOIN order_items oi ON p.id = oi.product_id
+    JOIN orders o ON oi.order_id = o.id
+    WHERE o.created_at >= NOW() - INTERVAL '6 months'
+    AND o.status = 'delivered'
+    GROUP BY p.uuid, p.name, DATE_TRUNC('month', o.created_at)
+    ORDER BY revenue DESC
+");
+```
+
+### Recherche Géographique Commandes
+```php
+// Commandes dans un rayon avec densité
+$nearbyOrders = DB::select("
+    SELECT 
+        o.uuid,
+        o.order_number,
+        ST_Distance(o.shipping_location, ST_Point(?, ?)) as distance_meters,
+        COUNT(*) OVER (PARTITION BY ST_SnapToGrid(o.shipping_location, 0.01)) as density
+    FROM orders o
+    WHERE ST_DWithin(o.shipping_location, ST_Point(?, ?), ?)
+    AND o.created_at >= NOW() - INTERVAL '30 days'
+    ORDER BY distance_meters
+", [$lat, $lng, $lat, $lng, $radiusMeters]);
+```
+
+## 🛠️ Optimisations Performance PostgreSQL
+
+### Configuration postgresql.conf
+```ini
+# Optimisations e-commerce (dans le container)
+shared_buffers = 256MB
+effective_cache_size = 1GB
+maintenance_work_mem = 64MB
+checkpoint_completion_target = 0.9
+wal_buffers = 16MB
+default_statistics_target = 100
+
+# Vector search
+shared_preload_libraries = 'vector'
+```
+
+### Monitoring et Maintenance
+```php
+// Commande Artisan pour maintenance
+class DatabaseMaintenanceCommand extends Command
+{
+    public function handle()
+    {
+        // Vacuum analyze tables
+        DB::statement('VACUUM ANALYZE products');
+        DB::statement('VACUUM ANALYZE orders');
+        
+        // Reindex vector indexes
+        DB::statement('REINDEX INDEX products_desc_embedding_idx');
+        
+        // Refresh materialized views
+        DB::statement('REFRESH MATERIALIZED VIEW CONCURRENTLY product_analytics');
+        
+        $this->info('Database maintenance completed');
+    }
+}
+```
+
+### Requêtes Explain pour Debug
+```php
+// Debug performance
+$explain = DB::select("
+    EXPLAIN (ANALYZE, BUFFERS) 
+    SELECT * FROM products 
+    WHERE description_embedding <=> ?::vector 
+    ORDER BY description_embedding <=> ?::vector 
+    LIMIT 10
+", [$embedding, $embedding]);
+```
+
+
+Priorité : UUID public + ID interne, Vector search, JSONB avancé, géospatial, analytics temps réel PostgreSQL.

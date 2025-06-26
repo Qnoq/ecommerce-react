@@ -27,7 +27,7 @@ services:
       - ecommerce-network
 
   postgres:
-    image: postgres:17-alpine
+    image: pgvector/pgvector:pg17
     init: true
     ports:
       - "5432:5432"
@@ -53,6 +53,11 @@ services:
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@example.com
       PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+      PGADMIN_DEFAULT_LANGUAGE: 'fr'
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+      - ./docker/pgadmin/servers.json:/pgadmin4/servers.json
     depends_on:
       - postgres
     networks:
@@ -64,3 +69,4 @@ networks:
 
 volumes:
   postgres_data:
+  pgadmin_data:

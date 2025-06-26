@@ -1,0 +1,740 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# 🎯 Règles Cursor Pratiques pour Laravel + Inertia + React
+
+## 1. 🎨 `.cursorrules-components`
+**Pour composants React avec Inertia**
+
+```text
+# Cursor AI Rules - React Components avec Inertia.js
+
+## 🎯 Contexte Frontend
+Tu développes des composants React pour e-commerce avec Inertia.js (pas Vue.js !).
+
+### Stack Frontend
+- **React 18** avec hooks modernes
+- **Inertia.js** pour routing et state
+- **Tailwind CSS** pour styling
+- **Headless UI** pour composants accessibles
+
+### Structure Components
+```
+resources/js/
+├── Pages/           # Pages Inertia (ProductIndex, OrderShow, etc.)
+├── Components/      # Composants réutilisables UI
+├── Layouts/         # AppLayout, AdminLayout, GuestLayout
+├── Hooks/          # Custom hooks métier
+└── Utils/          # Helpers JavaScript
+```
+
+### Patterns React + Inertia
+```jsx
+import { useForm, usePage } from '@inertiajs/react'
+import { useState, useEffect } from 'react'
+
+export default function ProductIndex({ products, filters }) {
+    const { data, setData, get, processing } = useForm({
+        search: filters.search || '',
+        category: filters.category || ''
+    })
+    
+    const handleSearch = (e) => {
+        setData('search', e.target.value)
+        // Debounce et submit automatique
+        clearTimeout(window.searchTimeout)
+        window.searchTimeout = setTimeout(() => {
+            get(route('products.index'), {
+                preserveState: true,
+                preserveScroll: true
+            })
+        }, 300)
+    }
+    
+    return (
+        <div>
+            <input 
+                value={data.search}
+                onChange={handleSearch}
+                placeholder="Rechercher..."
+                className="border rounded px-3 py-2"
+            />
+            {/* Grille produits */}
+        </div>
+    )
+}
+```
+
+### Hooks Custom E-commerce
+```jsx
+// useCart.js
+export function useCart() {
+    const { props } = usePage()
+    const cartItems = props.cart?.items || []
+    
+    const addToCart = (productId, quantity = 1) => {
+        router.post(route('cart.add'), {
+            product_id: productId,
+            quantity
+        }, {
+            preserveScroll: true,
+            onSuccess: () => {
+                // Toast success
+            }
+        })
+    }
+    
+    const cartTotal = cartItems.reduce((sum, item) => 
+        sum + (item.price * item.quantity), 0
+    )
+    
+    return { cartItems, cartTotal, addToCart }
+}
+```
+
+### Composants Types E-commerce
+```jsx
+// ProductCard.jsx
+export default function ProductCard({ product }) {
+    const { addToCart } = useCart()
+    
+    return (
+        <div className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow">
+            <img 
+                src={product.image} 
+                alt={product.name}
+                className="w-full h-48 object-cover rounded-t-lg"
+            />
+            <div className="p-4">
+                <h3 className="font-semibold text-gray-900">{product.name}</h3>
+                <p className="text-green-600 font-bold">{product.formatted_price}</p>
+                <button 
+                    onClick={() => addToCart(product.id)}
+                    disabled={!product.in_stock}
+                    className="w-full mt-2 bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:bg-gray-300"
+                >
+                    {product.in_stock ? 'Ajouter au panier' : 'Rupture de stock'}
+                </button>
+            </div>
+        </div>
+    )
+}
+```
+
+### Auth avec Inertia (déjà géré)
+```jsx
+// Utiliser usePage() pour l'auth
+const { auth } = usePage().props
+
+if (auth.user) {
+    // Utilisateur connecté
+} else {
+    // Utilisateur invité
+}
+```
+
+Priorité : Composants réutilisables, performants, accessibles avec Tailwind.
+```
+
+## 2. 🗄️ `.cursorrules-models`
+**Pour modèles Eloquent optimisés**
+
+```text
+# Cursor AI Rules - Eloquent Models E-commerce
+
+## 🎯 Contexte Models
+Tu crées des modèles Eloquent robustes pour l'e-commerce.
+
+### Conventions Models
+- **Singulier PascalCase** : Product, Order, User, Category
+- **Relations typées** : Toujours avec return types
+- **Scopes** : Logique métier réutilisable
+- **Mutators/Accessors** : Formatage données
+- **Fillable/Hidden** : Sécurité mass assignment
+
+### Model Product Type
+```php
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
+
+class Product extends Model
+{
+    protected $fillable = [
+        'name', 'description', 'price', 'stock_quantity', 
+        'sku', 'is_active', 'seo_title', 'seo_description'
+    ];
+    
+    protected $casts = [
+        'price' => 'decimal:2',
+        'is_active' => 'boolean',
+        'created_at' => 'datetime',
+    ];
+    
+    protected $hidden = ['created_at', 'updated_at'];
+    
+    // Relations
+    public function categories(): BelongsToMany
+    {
+        return $this->belongsToMany(Category::class);
+    }
+    
+    public function orderItems(): HasMany
+    {
+        return $this->hasMany(OrderItem::class);
+    }
+    
+    public function images(): HasMany
+    {
+        return $this->hasMany(ProductImage::class);
+    }
+    
+    // Scopes
+    public function scopeActive(Builder $query): void
+    {
+        $query->where('is_active', true);
+    }
+    
+    public function scopeInStock(Builder $query): void
+    {
+        $query->where('stock_quantity', '>', 0);
+    }
+    
+    public function scopeByCategory(Builder $query, string $categorySlug): void
+    {
+        $query->whereHas('categories', fn($q) => $q->where('slug', $categorySlug));
+    }
+    
+    // Accessors
+    protected function formattedPrice(): Attribute
+    {
+        return Attribute::make(
+            get: fn() => '€' . number_format($this->price, 2, ',', ' ')
+        );
+    }
+    
+    protected function inStock(): Attribute
+    {
+        return Attribute::make(
+            get: fn() => $this->stock_quantity > 0
+        );
+    }
+    
+    // Mutators
+    protected function name(): Attribute
+    {
+        return Attribute::make(
+            set: fn(string $value) => ucfirst(trim($value))
+        );
+    }
+    
+    // Methods métier
+    public function decreaseStock(int $quantity): bool
+    {
+        if ($this->stock_quantity < $quantity) {
+            return false;
+        }
+        
+        $this->decrement('stock_quantity', $quantity);
+        return true;
+    }
+    
+    public function getMainImage(): ?string
+    {
+        return $this->images()->first()?->url;
+    }
+}
+```
+
+### Model Order Type
+```php
+class Order extends Model
+{
+    protected $fillable = [
+        'user_id', 'total_amount', 'status', 'order_number',
+        'shipping_address_id', 'billing_address_id', 'payment_status'
+    ];
+    
+    protected $casts = [
+        'total_amount' => 'decimal:2',
+        'created_at' => 'datetime',
+    ];
+    
+    // Enum pour statuts
+    protected $attributes = [
+        'status' => 'pending'
+    ];
+    
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+    
+    public function items(): HasMany
+    {
+        return $this->hasMany(OrderItem::class);
+    }
+    
+    public function shippingAddress(): BelongsTo
+    {
+        return $this->belongsTo(Address::class, 'shipping_address_id');
+    }
+    
+    // Scopes
+    public function scopePending(Builder $query): void
+    {
+        $query->where('status', 'pending');
+    }
+    
+    public function scopeCompleted(Builder $query): void
+    {
+        $query->where('status', 'completed');
+    }
+    
+    // Methods métier
+    public function calculateTotal(): float
+    {
+        return $this->items->sum(fn($item) => $item->price * $item->quantity);
+    }
+    
+    public function markAsConfirmed(): void
+    {
+        $this->update(['status' => 'confirmed']);
+        // Event/Job pour email confirmation
+    }
+}
+```
+
+### Factory Pattern
+```php
+// ProductFactory.php
+public function definition(): array
+{
+    return [
+        'name' => fake()->words(3, true),
+        'description' => fake()->paragraph(),
+        'price' => fake()->randomFloat(2, 10, 1000),
+        'stock_quantity' => fake()->numberBetween(0, 100),
+        'sku' => fake()->unique()->regexify('[A-Z]{3}[0-9]{4}'),
+        'is_active' => fake()->boolean(80),
+    ];
+}
+
+public function outOfStock(): static
+{
+    return $this->state(['stock_quantity' => 0]);
+}
+
+public function expensive(): static
+{
+    return $this->state(['price' => fake()->randomFloat(2, 500, 2000)]);
+}
+```
+
+Priorité : Models expressifs, relations optimisées, logique métier encapsulée.
+```
+
+## 3. 🎛️ `.cursorrules-admin`
+**Pour interface d'administration**
+
+```text
+# Cursor AI Rules - Interface Administration
+
+## 🎯 Contexte Admin
+Tu crées des interfaces d'administration modernes pour l'e-commerce.
+
+### Architecture Admin
+```
+resources/js/Pages/Admin/
+├── Dashboard.jsx        # Tableau de bord
+├── Products/           # Gestion produits
+├── Orders/             # Gestion commandes
+├── Users/              # Gestion utilisateurs
+└── Settings/           # Configuration
+```
+
+### Middleware & Routes Admin
+```php
+// Dans web.php
+Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/', [AdminController::class, 'dashboard'])->name('dashboard');
+    Route::resource('products', AdminProductController::class);
+    Route::resource('orders', AdminOrderController::class);
+});
+```
+
+### Controller Admin Pattern
+```php
+class AdminProductController extends Controller
+{
+    public function index(Request $request)
+    {
+        $products = Product::query()
+            ->with(['categories', 'images'])
+            ->when($request->search, fn($q) => $q->where('name', 'like', "%{$request->search}%"))
+            ->when($request->status, fn($q) => $q->where('is_active', $request->status === 'active'))
+            ->orderBy($request->sort ?? 'created_at', $request->direction ?? 'desc')
+            ->paginate(20);
+            
+        return Inertia::render('Admin/Products/Index', [
+            'products' => ProductResource::collection($products),
+            'filters' => $request->only(['search', 'status', 'sort', 'direction'])
+        ]);
+    }
+    
+    public function store(ProductRequest $request)
+    {
+        $product = Product::create($request->validated());
+        
+        // Handle image uploads
+        if ($request->hasFile('images')) {
+            foreach ($request->file('images') as $image) {
+                $product->images()->create([
+                    'url' => $image->store('products', 'public'),
+                    'alt_text' => $request->name
+                ]);
+            }
+        }
+        
+        return redirect()->route('admin.products.index')
+            ->with('success', 'Produit créé avec succès');
+    }
+}
+```
+
+### Composants Admin React
+```jsx
+// AdminLayout.jsx
+export default function AdminLayout({ children }) {
+    const { auth } = usePage().props
+    
+    return (
+        <div className="min-h-screen bg-gray-100">
+            <nav className="bg-white shadow">
+                <div className="max-w-7xl mx-auto px-4">
+                    <div className="flex justify-between h-16">
+                        <div className="flex items-center space-x-8">
+                            <Link href={route('admin.dashboard')} className="text-xl font-bold">
+                                Admin
+                            </Link>
+                            <Link href={route('admin.products.index')}>Produits</Link>
+                            <Link href={route('admin.orders.index')}>Commandes</Link>
+                        </div>
+                        <div className="flex items-center">
+                            <span>{auth.user.name}</span>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+            <main className="py-6">
+                {children}
+            </main>
+        </div>
+    )
+}
+```
+
+```jsx
+// DataTable.jsx - Composant réutilisable
+export default function DataTable({ 
+    data, 
+    columns, 
+    onSort, 
+    sortField, 
+    sortDirection,
+    actions 
+}) {
+    return (
+        <div className="overflow-x-auto">
+            <table className="min-w-full bg-white">
+                <thead className="bg-gray-50">
+                    <tr>
+                        {columns.map(column => (
+                            <th 
+                                key={column.key}
+                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                                onClick={() => onSort(column.key)}
+                            >
+                                {column.label}
+                                {sortField === column.key && (
+                                    <span className="ml-1">
+                                        {sortDirection === 'asc' ? '↑' : '↓'}
+                                    </span>
+                                )}
+                            </th>
+                        ))}
+                        {actions && <th>Actions</th>}
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                    {data.map((item, index) => (
+                        <tr key={index}>
+                            {columns.map(column => (
+                                <td key={column.key} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {column.render ? column.render(item[column.key], item) : item[column.key]}
+                                </td>
+                            ))}
+                            {actions && (
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {actions(item)}
+                                </td>
+                            )}
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    )
+}
+```
+
+### Dashboard Metrics
+```jsx
+// AdminDashboard.jsx
+export default function AdminDashboard({ metrics }) {
+    return (
+        <AdminLayout>
+            <div className="max-w-7xl mx-auto px-4">
+                <h1 className="text-2xl font-bold mb-6">Tableau de bord</h1>
+                
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                    <MetricCard 
+                        title="Commandes aujourd'hui"
+                        value={metrics.orders_today}
+                        icon="📦"
+                        trend={metrics.orders_trend}
+                    />
+                    <MetricCard 
+                        title="Revenus du mois"
+                        value={metrics.revenue_month}
+                        icon="💰"
+                        trend={metrics.revenue_trend}
+                    />
+                    {/* Plus de métriques */}
+                </div>
+                
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <RecentOrders orders={metrics.recent_orders} />
+                    <TopProducts products={metrics.top_products} />
+                </div>
+            </div>
+        </AdminLayout>
+    )
+}
+```
+
+Priorité : Interface intuitive, données en temps réel, actions rapides.
+```
+
+## 4. 🔄 `.cursorrules-forms`
+**Pour formulaires et validation**
+
+```text
+# Cursor AI Rules - Forms & Validation
+
+## 🎯 Contexte Forms
+Tu crées des formulaires robustes avec validation côté client et serveur.
+
+### Pattern Validation Laravel
+```php
+// ProductRequest.php
+class ProductRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return $this->user()->can('manage-products');
+    }
+    
+    public function rules(): array
+    {
+        $productId = $this->route('product')?->id;
+        
+        return [
+            'name' => 'required|string|max:255|unique:products,name,' . $productId,
+            'description' => 'required|string|min:10',
+            'price' => 'required|numeric|min:0.01|max:999999.99',
+            'stock_quantity' => 'required|integer|min:0',
+            'category_ids' => 'required|array|min:1',
+            'category_ids.*' => 'exists:categories,id',
+            'images' => 'nullable|array|max:5',
+            'images.*' => 'image|mimes:jpeg,png,jpg|max:2048'
+        ];
+    }
+    
+    public function messages(): array
+    {
+        return [
+            'name.unique' => 'Ce nom de produit existe déjà.',
+            'price.min' => 'Le prix doit être supérieur à 0.',
+            'images.*.max' => 'Chaque image ne doit pas dépasser 2MB.'
+        ];
+    }
+}
+```
+
+### Formulaire React avec Inertia
+```jsx
+// ProductForm.jsx
+import { useForm } from '@inertiajs/react'
+import { useState } from 'react'
+
+export default function ProductForm({ product, categories }) {
+    const { data, setData, post, put, processing, errors, progress } = useForm({
+        name: product?.name || '',
+        description: product?.description || '',
+        price: product?.price || '',
+        stock_quantity: product?.stock_quantity || 0,
+        category_ids: product?.categories?.map(c => c.id) || [],
+        images: []
+    })
+    
+    const handleSubmit = (e) => {
+        e.preventDefault()
+        
+        if (product) {
+            post(route('admin.products.update', product.id), {
+                forceFormData: true, // Pour les fichiers
+                onSuccess: () => {
+                    // Success feedback
+                }
+            })
+        } else {
+            post(route('admin.products.store'), {
+                forceFormData: true
+            })
+        }
+    }
+    
+    return (
+        <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+                <label className="block text-sm font-medium text-gray-700">
+                    Nom du produit
+                </label>
+                <input
+                    type="text"
+                    value={data.name}
+                    onChange={e => setData('name', e.target.value)}
+                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm ${
+                        errors.name ? 'border-red-500' : ''
+                    }`}
+                />
+                {errors.name && (
+                    <p className="mt-1 text-sm text-red-600">{errors.name}</p>
+                )}
+            </div>
+            
+            <div>
+                <label className="block text-sm font-medium text-gray-700">
+                    Prix (€)
+                </label>
+                <input
+                    type="number"
+                    step="0.01"
+                    value={data.price}
+                    onChange={e => setData('price', e.target.value)}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                />
+                {errors.price && (
+                    <p className="mt-1 text-sm text-red-600">{errors.price}</p>
+                )}
+            </div>
+            
+            <div>
+                <label className="block text-sm font-medium text-gray-700">
+                    Catégories
+                </label>
+                <select
+                    multiple
+                    value={data.category_ids}
+                    onChange={e => setData('category_ids', 
+                        Array.from(e.target.selectedOptions, option => parseInt(option.value))
+                    )}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                >
+                    {categories.map(category => (
+                        <option key={category.id} value={category.id}>
+                            {category.name}
+                        </option>
+                    ))}
+                </select>
+            </div>
+            
+            <div>
+                <label className="block text-sm font-medium text-gray-700">
+                    Images
+                </label>
+                <input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={e => setData('images', Array.from(e.target.files))}
+                    className="mt-1 block w-full"
+                />
+                {progress && (
+                    <div className="mt-2">
+                        <div className="bg-gray-200 rounded-full h-2">
+                            <div 
+                                className="bg-blue-600 h-2 rounded-full transition-all"
+                                style={{ width: `${progress.percentage}%` }}
+                            ></div>
+                        </div>
+                    </div>
+                )}
+            </div>
+            
+            <button
+                type="submit"
+                disabled={processing}
+                className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50"
+            >
+                {processing ? 'Enregistrement...' : (product ? 'Modifier' : 'Créer')}
+            </button>
+        </form>
+    )
+}
+```
+
+### Composant Input Réutilisable
+```jsx
+// FormInput.jsx
+export default function FormInput({ 
+    label, 
+    error, 
+    type = 'text', 
+    required = false,
+    ...props 
+}) {
+    return (
+        <div>
+            <label className="block text-sm font-medium text-gray-700">
+                {label} {required && <span className="text-red-500">*</span>}
+            </label>
+            <input
+                type={type}
+                className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
+                    error ? 'border-red-500' : ''
+                }`}
+                {...props}
+            />
+            {error && (
+                <p className="mt-1 text-sm text-red-600">{error}</p>
+            )}
+        </div>
+    )
+}
+```
+
+Priorité : UX fluide, validation temps réel, feedback utilisateur clair.
+```
+
+
+Quel type de règles vous intéresse le plus pour commencer ? 🎯

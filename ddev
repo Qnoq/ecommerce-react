@@ -32,17 +32,132 @@ case $1 in
     fresh)
         docker exec -it $CONTAINER php artisan migrate:fresh --seed
         ;;
+    rebuild)
+        if ! docker info > /dev/null 2>&1; then
+            echo "❌ Docker n'est pas démarré !"
+            echo "💡 Démarrez Docker Desktop et réessayez"
+            exit 1
+        fi
+        echo "🔥 Rebuild complet de l'environnement..."
+        echo "🛑 Arrêt des containers..."
+        docker-compose down
+        echo "🏗️  Rebuild des images..."
+        docker-compose build --no-cache
+        echo "🚀 Démarrage des containers..."
+        docker-compose up -d
+        echo "⏳ Attente que PostgreSQL soit prêt..."
+        sleep 5
+        echo "🗄️  Exécution des migrations..."
+        docker exec -it $CONTAINER php artisan migrate
+        echo ""
+        echo "✅ Rebuild terminé avec succès !"
+        echo "📱 Laravel: http://localhost:8001"
+        echo "🗃️  pgAdmin: http://localhost:5050"
+        echo ""
+        echo "💡 N'oubliez pas de lancer 'npm run dev' dans un autre terminal !"
+        ;;
+    start)
+        if ! docker info > /dev/null 2>&1; then
+            echo "❌ Docker n'est pas démarré !"
+            echo "💡 Démarrez Docker Desktop et réessayez"
+            exit 1
+        fi
+        echo "🚀 Démarrage de l'environnement de développement..."
+        docker-compose build --no-cache
+        docker-compose up -d
+        echo "✅ Docker containers démarrés!"
+        echo "📦 Installation des dépendances..."
+        docker exec -it $CONTAINER composer install
+        echo "🔑 Génération de la clé d'application..."
+        docker exec -it $CONTAINER php artisan key:generate
+        echo "🗄️  Exécution des migrations..."
+        docker exec -it $CONTAINER php artisan migrate
+        echo ""
+        echo "🎉 Environnement prêt !"
+        echo "📱 Laravel: http://localhost:8001"
+        echo "🗃️  pgAdmin: http://localhost:5050"
+        echo ""
+        echo "💡 N'oubliez pas de lancer 'npm run dev' dans un autre terminal !"
+        ;;
+    stop)
+        if ! docker info > /dev/null 2>&1; then
+            echo "❌ Docker n'est pas démarré !"
+            echo "💡 Démarrez Docker Desktop et réessayez"
+            exit 1
+        fi
+        echo "🛑 Arrêt de l'environnement de développement..."
+        docker-compose stop
+        echo "✅ Containers arrêtés (données préservées)"
+        ;;
+    restart)
+        if ! docker info > /dev/null 2>&1; then
+            echo "❌ Docker n'est pas démarré !"
+            echo "💡 Démarrez Docker Desktop et réessayez"
+            exit 1
+        fi
+        echo "🔄 Redémarrage de l'environnement..."
+        docker-compose restart
+        echo "✅ Redémarrage terminé!"
+        ;;
+    status)
+        if ! docker info > /dev/null 2>&1; then
+            echo "❌ Docker n'est pas démarré !"
+            echo "💡 Démarrez Docker Desktop et réessayez"
+            exit 1
+        fi
+        echo "📊 Statut des containers:"
+        docker-compose ps
+        ;;
     up)
+        if ! docker info > /dev/null 2>&1; then
+            echo "❌ Docker n'est pas démarré !"
+            echo "💡 Démarrez Docker Desktop et réessayez"
+            exit 1
+        fi
         docker-compose up -d
         ;;
     down)
+        if ! docker info > /dev/null 2>&1; then
+            echo "❌ Docker n'est pas démarré !"
+            echo "💡 Démarrez Docker Desktop et réessayez"
+            exit 1
+        fi
         docker-compose down
         ;;
     build)
+        if ! docker info > /dev/null 2>&1; then
+            echo "❌ Docker n'est pas démarré !"
+            echo "💡 Démarrez Docker Desktop et réessayez"
+            exit 1
+        fi
         docker-compose build --no-cache
         ;;
     logs)
+        if ! docker info > /dev/null 2>&1; then
+            echo "❌ Docker n'est pas démarré !"
+            echo "💡 Démarrez Docker Desktop et réessayez"
+            exit 1
+        fi
         docker-compose logs -f
+        ;;
+    help)
+        echo "🔧 Commandes disponibles:"
+        echo "  ./ddev start     - Build et démarrer l'environnement complet"
+        echo "  ./ddev stop      - Arrêter l'environnement (préserve les données)"
+        echo "  ./ddev restart   - Redémarrer les containers"
+        echo "  ./ddev status    - Voir le statut des containers"
+        echo ""
+        echo "📝 Commandes Laravel:"
+        echo "  ./ddev artisan [cmd]  - Exécuter une commande artisan"
+        echo "  ./ddev composer [cmd] - Exécuter composer"
+        echo "  ./ddev migrate        - Lancer les migrations"
+        echo "  ./ddev fresh          - Migrations fresh + seed"
+        echo "  ./ddev tinker         - Laravel Tinker"
+        echo ""
+        echo "🐳 Commandes Docker:"
+        echo "  ./ddev shell     - Accéder au container"
+        echo "  ./ddev logs      - Voir les logs"
+        echo "  ./ddev build     - Rebuild les containers"
         ;;
     *)
         docker exec -it $CONTAINER "$@"

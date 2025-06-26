@@ -1,0 +1,229 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Cursor AI Rules - Laravel + Docker + FrankenPHP + Inertia.js
+
+## 🎯 Contexte Projet
+
+Tu travailles sur un **projet e-commerce** (base de données `ecommerce`) avec les fonctionnalités typiques :
+- **Gestion des produits** (catalogue, catégories, variations, stock)
+- **Gestion des commandes** (panier, checkout, statuts, livraison)
+- **Gestion des utilisateurs** (clients, admin, rôles, permissions)
+- **Système de paiement** (intégration payment gateway)
+- **Interface d'administration** (dashboard, gestion contenus)
+
+### Entités Métier Principales
+- `User` (clients + admins)
+- `Product` (avec categories, images, variants)
+- `Order` (avec order_items, statuts)
+- `Category` (hiérarchique)
+- `Cart` / `CartItem`
+- `Payment` / `Transaction`
+- `Address` (livraison/facturation)
+
+## 🏗️ Architecture Technique
+
+Tu travailles sur un projet Laravel avec la stack suivante :
+- **Laravel** avec **Inertia.js** (Vue.js/React)
+- **FrankenPHP** (serveur web + PHP 8.3.13)
+- **PostgreSQL** (base de données)
+- **Docker** (conteneurisation complète)
+- **Vite** (build tools + HMR)
+
+## 📁 Structure et Organisation
+
+### Conteneurs Docker
+- `app` : Laravel + FrankenPHP (port 8001)
+- `postgres` : PostgreSQL (port 5432)
+- `pgadmin` : Interface web BDD (port 5050)
+
+### Commandes Docker Custom
+Le projet utilise un script `./docker` pour simplifier les commandes :
+```bash
+./docker artisan [command]     # Artisan commands
+./docker composer [command]    # Composer commands
+./docker shell                 # Access container shell
+./docker up/down               # Start/stop services
+./docker migrate               # Run migrations
+./docker fresh                 # Fresh migrations + seed
+```
+
+### URLs du Projet
+- **Laravel App** : http://localhost:8001
+- **Vite Dev Server** : http://localhost:5173
+- **pgAdmin** : http://localhost:5050
+- **PostgreSQL** : localhost:5432
+
+## 🎯 Directives de Code
+
+### Laravel Best Practices
+1. **Toujours** utiliser les conventions Laravel (PascalCase pour les modèles, camelCase pour les méthodes)
+2. **Privilégier** l'Eloquent ORM plutôt que Query Builder quand possible
+3. **Utiliser** les Form Requests pour la validation
+4. **Créer** des Resources pour les API responses
+5. **Implémenter** les Policies pour l'autorisation
+
+### Inertia.js Guidelines
+1. **Structurer** les composants dans `resources/js/Pages/`
+2. **Utiliser** `usePage()` pour accéder aux props Laravel
+3. **Passer** les données via les controllers avec `Inertia::render()`
+4. **Gérer** les formulaires avec `useForm()` d'Inertia
+5. **Implémenter** la validation côté client ET serveur
+
+### Base de Données PostgreSQL
+1. **Utiliser** les migrations pour tous les changements de schéma
+2. **Définir** les relations Eloquent correctement
+3. **Optimiser** avec les indexes appropriés
+4. **Utiliser** les UUID pour les clés primaires si nécessaire
+5. **Implémenter** les soft deletes quand approprié
+
+### Docker Workflow
+1. **Développement** : `docker-compose up -d` + `npm run dev` (2 terminaux)
+2. **Commandes Laravel** : Utiliser `./docker artisan [command]`
+3. **Installation packages** : `./docker composer require [package]`
+4. **Debug** : `./docker shell` pour accéder au container
+
+## 📝 Conventions de Fichiers
+
+### Controllers
+- PascalCase : `ProductController`, `OrderController`
+- Méthodes RESTful : `index()`, `show()`, `store()`, `update()`, `destroy()`
+- Retourner `Inertia::render()` pour les vues
+
+### Models
+- Singulier PascalCase : `Product`, `Order`, `User`
+- Définir `$fillable` ou `$guarded`
+- Relations avec type hints appropriés
+
+### Migrations
+- Format : `YYYY_MM_DD_HHMMSS_create_products_table.php`
+- Noms de tables au pluriel : `products`, `orders`, `users`
+- Foreign keys : `product_id`, `user_id`
+
+### Vues Inertia
+- Pages dans `resources/js/Pages/[Entity]/[Action].vue`
+- Composants réutilisables dans `resources/js/Components/`
+- Layouts dans `resources/js/Layouts/`
+
+## 🛠️ Configuration Spécifique
+
+### Variables d'Environnement (.env)
+```env
+APP_URL=http://localhost:8001
+DB_CONNECTION=pgsql
+DB_HOST=postgres
+DB_PORT=5432
+DB_DATABASE=ecommerce
+DB_USERNAME=postgres
+DB_PASSWORD=password
+```
+
+### Vite Configuration
+Le serveur Vite tourne sur l'host (0.0.0.0:5173) pour le HMR Docker.
+
+### FrankenPHP Caddyfile
+Configuré pour servir Laravel depuis `/app/public` sur le port 8000 (mappé sur 8001).
+
+## 🚨 Points d'Attention
+
+### Permissions Docker
+- Utilisateur non-root dans le container (UID/GID 1000)
+- Volumes montés avec `:delegated` pour les performances
+- Permissions 775 sur `storage/` et `bootstrap/cache/`
+
+### Performance
+- FrankenPHP offre de meilleures performances que nginx+php-fpm
+- Utiliser les caches Laravel appropriés (config, route, view)
+- Optimiser les requêtes Eloquent (N+1 queries)
+
+### Sécurité
+- Valider TOUTES les entrées utilisateur
+- Utiliser les CSRF tokens d'Inertia
+- Implémenter l'authentification/autorisation Laravel
+
+## 📦 Packages Recommandés
+
+### Laravel
+- `spatie/laravel-permission` : Gestion des rôles/permissions
+- `spatie/laravel-query-builder` : API filtering/sorting
+- `barryvdh/laravel-debugbar` : Debug en développement
+
+### Frontend (Inertia)
+- `@inertiajs/vue3` ou `@inertiajs/react`
+- `@headlessui/vue` ou `@headlessui/react` : Composants accessibles
+- `@tailwindcss/forms` : Styles de formulaires
+
+## 🎯 Workflow Type E-commerce
+
+1. **Nouvelle entité produit** :
+   ```bash
+   ./docker artisan make:model Product -mcr
+   ./docker artisan make:request ProductRequest
+   ./docker artisan make:policy ProductPolicy
+   # Éditer migration (avec prix, stock, SEO), model, controller
+   ./docker migrate
+   # Créer les vues Inertia (ProductIndex, ProductShow, ProductForm)
+   ```
+
+2. **Gestion commandes** :
+   ```bash
+   ./docker artisan make:model Order -mcr
+   ./docker artisan make:model OrderItem -m
+   ./docker artisan make:job ProcessOrderJob
+   ./docker artisan make:mail OrderConfirmationMail
+   ```
+
+3. **Debug e-commerce** :
+   ```bash
+   ./docker logs          # Logs containers
+   ./docker shell         # Access container
+   ./docker artisan tinker # Laravel REPL (test Cart, Orders)
+   # Dans tinker : User::find(1)->orders, Product::inStock()->get()
+   ```
+
+4. **Tests e-commerce** :
+   ```bash
+   ./docker artisan test --filter ProductTest
+   ./docker artisan test --filter CartTest
+   ./docker artisan test --filter OrderTest
+   ```
+
+## 💡 Suggestions Automatiques E-commerce
+
+Quand je demande du code :
+1. **Propose** toujours la structure complète (Model + Migration + Controller + Request + Vue)
+2. **Inclus** les relations Eloquent appropriées pour l'e-commerce
+3. **Utilise** les conventions de nommage Laravel
+4. **Ajoute** la validation côté serveur ET client
+5. **Suggère** les routes appropriées dans `web.php`
+6. **Optimise** pour PostgreSQL (types de colonnes, indexes)
+7. **Pense** aux fonctionnalités e-commerce (prix, stock, SEO, images)
+
+### Exemples Contextuels E-commerce
+
+**Pour un Product** :
+- Relations : `belongsToMany(Category)`, `hasMany(OrderItem)`, `hasMany(ProductImage)`
+- Champs : `name`, `description`, `price`, `stock_quantity`, `sku`, `is_active`, `seo_title`, `seo_description`
+- Scopes : `active()`, `inStock()`, `byCategory()`
+
+**Pour une Order** :
+- Relations : `belongsTo(User)`, `hasMany(OrderItem)`, `belongsTo(Address, 'shipping_address_id')`
+- Statuts : `pending`, `confirmed`, `processing`, `shipped`, `delivered`, `cancelled`
+- Champs : `total_amount`, `status`, `order_number`, `payment_status`
+
+**Pour un User** :
+- Relations : `hasMany(Order)`, `hasMany(Address)`, `hasOne(Cart)`
+- Rôles : `customer`, `admin`, `manager`
+- Champs : `email`, `email_verified_at`, `is_active`, `last_login_at`
+
+### Composants Frontend Typiques
+- `ProductCard.vue`, `ProductGrid.vue`
+- `ShoppingCart.vue`, `CartItem.vue`
+- `CheckoutForm.vue`, `PaymentForm.vue`
+- `OrderHistory.vue`, `OrderDetails.vue`
+- `AdminDashboard.vue`, `ProductManagement.vue`
+
+
+Priorité : Code propre, sécurisé, performant et suivant les conventions Laravel/Inertia pour l'e-commerce.
