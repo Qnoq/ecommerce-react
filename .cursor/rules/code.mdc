@@ -11,6 +11,32 @@ alwaysApply: true
 ```text
 # Cursor AI Rules - React Components avec Inertia.js
 
+## Stack Technique
+- **Backend** : Laravel 11 + Inertia.js
+- **Frontend** : React 18 + Tailwind CSS + Headless UI
+- **Base** : MySQL, Vite, SSR activé
+
+## Architecture
+- **API-less** : Communication via Inertia uniquement
+- **SSR** : Rendu côté serveur pour SEO optimal
+- **Responsive** : Mobile-first avec CSS media queries
+- **Admin** : Interface d'administration complète
+
+## Règles spécifiques
+Utilise les fichiers spécialisés selon le contexte :
+- `.cursorrules-components` : Composants React
+- `.cursorrules-models` : Modèles Eloquent  
+- `.cursorrules-admin` : Interface admin
+- `.cursorrules-forms` : Formulaires et validation
+
+## Responsive Design
+- **CSS Media Queries** en priorité (SSR-friendly)
+- **Mobile-first** : min-width breakpoints
+- **Composants avec props responsive**
+- **Images adaptatives** avec <picture>
+
+Priorité : Performance, SEO, UX, maintenabilité.
+
 ## 🎯 Contexte Frontend
 Tu développes des composants React pour e-commerce avec Inertia.js (pas Vue.js !).
 
@@ -734,7 +760,5 @@ export default function FormInput({
 ```
 
 Priorité : UX fluide, validation temps réel, feedback utilisateur clair.
-```
 
-
-Quel type de règles vous intéresse le plus pour commencer ? 🎯
+``

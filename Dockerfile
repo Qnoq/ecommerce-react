@@ -24,7 +24,7 @@ COPY --from=mlocati/php-extension-installer /usr/bin/install-php-extensions /usr
 # Install PHP extensions as root
 RUN install-php-extensions \
     pdo pdo_pgsql pgsql \
-    intl gd zip opcache bcmath pcntl
+    intl gd zip opcache bcmath
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
@@ -36,7 +36,7 @@ RUN addgroup -g $USER_GID $USERNAME \
     && setcap CAP_NET_BIND_SERVICE=+eip /usr/local/bin/frankenphp
 
 # Need to be able to set some values for Caddy
-RUN chown -R ${USER_UID}:${USER_GID} /data/caddy && chown -R ${USER_GID}:${USER_GID} /config/caddy
+RUN chown -R ${USER_UID}:${USER_GID} /data/caddy && chown -R ${USER_UID}:${USER_GID} /config/caddy
 
 # Set working directory
 WORKDIR /app
@@ -45,9 +45,6 @@ WORKDIR /app
 COPY composer.json composer.lock ./
 RUN composer install --no-scripts --no-autoloader --prefer-dist
 
-# Install Octane AVANT de copier l'app
-RUN composer require laravel/octane --no-scripts
-
 # Copy package.json and install npm dependencies
 COPY package.json package-lock.json ./
 RUN npm ci
@@ -55,9 +52,6 @@ RUN npm ci
 # Copy application
 COPY . .
 RUN composer dump-autoload --optimize
-
-# Install Octane config
-RUN php artisan octane:install --server=frankenphp --no-interaction
 
 # Fix permissions
 RUN chown -R ${USER_UID}:${USER_GID} /app
@@ -68,5 +62,5 @@ USER $USERNAME
 
 EXPOSE 80 443 5173
 
-# Start with Octane FrankenPHP
-CMD ["php", "artisan", "octane:frankenphp", "--host=0.0.0.0", "--port=8000"]
+# Start only FrankenPHP (Vite will run locally)
+CMD ["frankenphp", "run"]
