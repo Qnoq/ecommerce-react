@@ -1,52 +1,154 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# Script Docker portable pour Laravel
+# Script Docker portable pour Laravel - Version Universelle macOS/Windows
 CONTAINER="ecommerce-app-1"
+
+# Détection de l'OS
+detect_os() {
+    case "$(uname -s)" in
+        Darwin*)    OS="mac";;
+        MINGW*)     OS="windows";;
+        CYGWIN*)    OS="windows";;
+        MSYS*)      OS="windows";;
+        *)          OS="linux";;
+    esac
+}
+
+# Fonction pour déterminer la commande docker-compose
+get_compose_cmd() {
+    if command -v docker-compose &> /dev/null; then
+        echo "docker-compose"
+    elif docker compose version &> /dev/null; then
+        echo "docker compose"
+    else
+        echo ""
+    fi
+}
+
+# Fonction pour vérifier Docker selon l'OS
+check_docker() {
+    detect_os
+    
+    if ! command -v docker &> /dev/null; then
+        echo "❌ Docker n'est pas installé !"
+        if [ "$OS" = "mac" ]; then
+            echo "💡 Installez Docker Desktop sur macOS:"
+            echo "   brew install --cask docker"
+            echo "   ou téléchargez depuis https://www.docker.com/products/docker-desktop"
+        elif [ "$OS" = "windows" ]; then
+            echo "💡 Installez Docker Desktop sur Windows:"
+            echo "   Téléchargez depuis https://www.docker.com/products/docker-desktop"
+        fi
+        exit 1
+    fi
+    
+    if ! docker info > /dev/null 2>&1; then
+        echo "❌ Docker n'est pas démarré !"
+        if [ "$OS" = "mac" ]; then
+            echo "💡 Démarrez Docker Desktop sur macOS:"
+            echo "   Applications > Docker > Docker Desktop"
+            echo "   ou dans Spotlight: Docker Desktop"
+        elif [ "$OS" = "windows" ]; then
+            echo "💡 Démarrez Docker Desktop sur Windows:"
+            echo "   Cherchez 'Docker Desktop' dans le menu Démarrer"
+        fi
+        exit 1
+    fi
+    
+    # Vérifier docker-compose
+    COMPOSE_CMD=$(get_compose_cmd)
+    if [ -z "$COMPOSE_CMD" ]; then
+        echo "❌ Docker Compose n'est pas disponible !"
+        if [ "$OS" = "mac" ]; then
+            echo "💡 Installez docker-compose:"
+            echo "   brew install docker-compose"
+        fi
+        exit 1
+    fi
+}
+
+# Fonction pour attendre que le container soit prêt
+wait_for_container() {
+    echo "⏳ Attente du démarrage du container..."
+    local max_attempts=30
+    local attempt=1
+    
+    while [ $attempt -le $max_attempts ]; do
+        if docker exec $CONTAINER php --version > /dev/null 2>&1; then
+            echo "✅ Container prêt!"
+            return 0
+        fi
+        echo "   Tentative $attempt/$max_attempts..."
+        sleep 2
+        ((attempt++))
+    done
+    
+    echo "❌ Le container n'a pas démarré correctement"
+    echo "💡 Vérifiez les logs avec: docker-compose logs"
+    exit 1
+}
+
+# Fonction pour afficher l'OS détecté
+show_os_info() {
+    detect_os
+    case $OS in
+        mac)     echo "🍎 macOS détecté";;
+        windows) echo "🪟 Windows détecté";;
+        linux)   echo "🐧 Linux détecté";;
+    esac
+}
 
 case $1 in
     artisan)
+        check_docker
         shift
         docker exec -it $CONTAINER php artisan "$@"
         ;;
     composer)
+        check_docker
         shift
         docker exec -it $CONTAINER composer "$@"
         ;;
     php)
+        check_docker
         shift
         docker exec -it $CONTAINER php "$@"
         ;;
     npm)
+        check_docker
         shift
         docker exec -it $CONTAINER npm "$@"
         ;;
     shell|sh|bash)
+        check_docker
         docker exec -it $CONTAINER sh
         ;;
     tinker)
+        check_docker
         docker exec -it $CONTAINER php artisan tinker
         ;;
     migrate)
+        check_docker
         docker exec -it $CONTAINER php artisan migrate
         ;;
     fresh)
+        check_docker
         docker exec -it $CONTAINER php artisan migrate:fresh --seed
         ;;
     rebuild)
-        if ! docker info > /dev/null 2>&1; then
-            echo "❌ Docker n'est pas démarré !"
-            echo "💡 Démarrez Docker Desktop et réessayez"
-            exit 1
-        fi
+        check_docker
+        COMPOSE_CMD=$(get_compose_cmd)
+        show_os_info
         echo "🔥 Rebuild complet de l'environnement..."
         echo "🛑 Arrêt des containers..."
-        docker-compose down
+        $COMPOSE_CMD down
         echo "🏗️  Rebuild des images..."
-        docker-compose build --no-cache
+        $COMPOSE_CMD build --no-cache
         echo "🚀 Démarrage des containers..."
-        docker-compose up -d
-        echo "⏳ Attente que PostgreSQL soit prêt..."
-        sleep 5
+        $COMPOSE_CMD up -d
+        
+        wait_for_container
+        
         echo "🗄️  Exécution des migrations..."
         docker exec -it $CONTAINER php artisan migrate
         echo ""
@@ -57,15 +159,15 @@ case $1 in
         echo "💡 N'oubliez pas de lancer 'npm run dev' dans un autre terminal !"
         ;;
     start)
-        if ! docker info > /dev/null 2>&1; then
-            echo "❌ Docker n'est pas démarré !"
-            echo "💡 Démarrez Docker Desktop et réessayez"
-            exit 1
-        fi
+        check_docker
+        COMPOSE_CMD=$(get_compose_cmd)
+        show_os_info
         echo "🚀 Démarrage de l'environnement de développement..."
-        docker-compose build --no-cache
-        docker-compose up -d
-        echo "✅ Docker containers démarrés!"
+        $COMPOSE_CMD build --no-cache
+        $COMPOSE_CMD up -d
+        
+        wait_for_container
+        
         echo "📦 Installation des dépendances..."
         docker exec -it $CONTAINER composer install
         echo "🔑 Génération de la clé d'application..."
@@ -80,86 +182,91 @@ case $1 in
         echo "💡 N'oubliez pas de lancer 'npm run dev' dans un autre terminal !"
         ;;
     stop)
-        if ! docker info > /dev/null 2>&1; then
-            echo "❌ Docker n'est pas démarré !"
-            echo "💡 Démarrez Docker Desktop et réessayez"
-            exit 1
-        fi
+        check_docker
         echo "🛑 Arrêt de l'environnement de développement..."
         docker-compose stop
         echo "✅ Containers arrêtés (données préservées)"
         ;;
     restart)
-        if ! docker info > /dev/null 2>&1; then
-            echo "❌ Docker n'est pas démarré !"
-            echo "💡 Démarrez Docker Desktop et réessayez"
-            exit 1
-        fi
+        check_docker
         echo "🔄 Redémarrage de l'environnement..."
         docker-compose restart
         echo "✅ Redémarrage terminé!"
         ;;
     status)
-        if ! docker info > /dev/null 2>&1; then
-            echo "❌ Docker n'est pas démarré !"
-            echo "💡 Démarrez Docker Desktop et réessayez"
-            exit 1
-        fi
+        check_docker
+        show_os_info
         echo "📊 Statut des containers:"
         docker-compose ps
+        echo ""
+        echo "🔍 Ressources système:"
+        docker stats --no-stream
         ;;
     up)
-        if ! docker info > /dev/null 2>&1; then
-            echo "❌ Docker n'est pas démarré !"
-            echo "💡 Démarrez Docker Desktop et réessayez"
-            exit 1
-        fi
+        check_docker
         docker-compose up -d
         ;;
     down)
-        if ! docker info > /dev/null 2>&1; then
-            echo "❌ Docker n'est pas démarré !"
-            echo "💡 Démarrez Docker Desktop et réessayez"
-            exit 1
-        fi
+        check_docker
         docker-compose down
         ;;
     build)
-        if ! docker info > /dev/null 2>&1; then
-            echo "❌ Docker n'est pas démarré !"
-            echo "💡 Démarrez Docker Desktop et réessayez"
-            exit 1
-        fi
+        check_docker
         docker-compose build --no-cache
         ;;
     logs)
-        if ! docker info > /dev/null 2>&1; then
-            echo "❌ Docker n'est pas démarré !"
-            echo "💡 Démarrez Docker Desktop et réessayez"
-            exit 1
-        fi
+        check_docker
         docker-compose logs -f
         ;;
+    clean)
+        check_docker
+        echo "🧹 Nettoyage de l'environnement Docker..."
+        docker-compose down -v
+        docker system prune -f
+        docker volume prune -f
+        echo "✅ Nettoyage terminé!"
+        ;;
+    info)
+        show_os_info
+        echo "📋 Informations système:"
+        echo "   Docker: $(docker --version 2>/dev/null || echo 'Non installé')"
+        echo "   Docker Compose: $(docker-compose --version 2>/dev/null || echo 'Non installé')"
+        echo "   Container: $CONTAINER"
+        ;;
     help)
+        show_os_info
+        echo ""
         echo "🔧 Commandes disponibles:"
-        echo "  ./ddev start     - Build et démarrer l'environnement complet"
-        echo "  ./ddev stop      - Arrêter l'environnement (préserve les données)"
-        echo "  ./ddev restart   - Redémarrer les containers"
-        echo "  ./ddev status    - Voir le statut des containers"
+        echo "  ddev start     - Build et démarrer l'environnement complet"
+        echo "  ddev stop      - Arrêter l'environnement (préserve les données)"
+        echo "  ddev restart   - Redémarrer les containers"
+        echo "  ddev rebuild   - Rebuild complet de l'environnement"
+        echo "  ddev status    - Voir le statut des containers"
+        echo "  ddev clean     - Nettoyer complètement Docker"
+        echo "  ddev info      - Informations système et Docker"
         echo ""
         echo "📝 Commandes Laravel:"
-        echo "  ./ddev artisan [cmd]  - Exécuter une commande artisan"
-        echo "  ./ddev composer [cmd] - Exécuter composer"
-        echo "  ./ddev migrate        - Lancer les migrations"
-        echo "  ./ddev fresh          - Migrations fresh + seed"
-        echo "  ./ddev tinker         - Laravel Tinker"
+        echo "  ddev artisan [cmd]  - Exécuter une commande artisan"
+        echo "  ddev composer [cmd] - Exécuter composer"
+        echo "  ddev migrate        - Lancer les migrations"
+        echo "  ddev fresh          - Migrations fresh + seed"
+        echo "  ddev tinker         - Laravel Tinker"
         echo ""
         echo "🐳 Commandes Docker:"
-        echo "  ./ddev shell     - Accéder au container"
-        echo "  ./ddev logs      - Voir les logs"
-        echo "  ./ddev build     - Rebuild les containers"
+        echo "  ddev shell     - Accéder au container"
+        echo "  ddev logs      - Voir les logs"
+        echo "  ddev build     - Rebuild les containers"
+        echo "  ddev up        - Démarrer les containers"
+        echo "  ddev down      - Arrêter et supprimer les containers"
+        echo ""
+        echo "💡 Exemples d'usage:"
+        echo "  ddev artisan make:model Product"
+        echo "  ddev composer require laravel/breeze"
+        echo "  ddev npm install"
+        echo "  ddev npm run dev"
         ;;
     *)
+        check_docker
         docker exec -it $CONTAINER "$@"
         ;;
 esac
