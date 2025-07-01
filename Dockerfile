@@ -24,7 +24,8 @@ COPY --from=mlocati/php-extension-installer /usr/bin/install-php-extensions /usr
 # Install PHP extensions as root
 RUN install-php-extensions \
     pdo pdo_pgsql pgsql \
-    intl gd zip opcache bcmath
+    intl gd zip opcache bcmath \
+    redis
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
@@ -57,8 +58,19 @@ RUN composer dump-autoload --optimize
 RUN chown -R ${USER_UID}:${USER_GID} /app
 RUN chmod -R 775 /app/storage /app/bootstrap/cache
 
+# Créez les répertoires nécessaires pour PsySH
+RUN mkdir -p /home/${USERNAME}/.config/psysh \
+    && chown -R ${USER_UID}:${USER_GID} /home/${USERNAME}/.config
+
+# Fix permissions
+RUN chown -R ${USER_UID}:${USER_GID} /app
+RUN chmod -R 775 /app/storage /app/bootstrap/cache
+
 # Tell docker that all future commands should run as the user we've created
 USER $USERNAME
+
+# Définir la variable d'environnement pour PsySH
+ENV PSYSH_CONFIG_DIR=/home/${USERNAME}/.config/psysh
 
 EXPOSE 80 443 5173
 

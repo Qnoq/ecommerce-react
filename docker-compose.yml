@@ -14,14 +14,41 @@ services:
     volumes:
       - .:/app:delegated
     environment:
+      # Application
+      APP_NAME: ShopLux
+      
+      # Database
       DB_CONNECTION: pgsql
       DB_HOST: postgres
       DB_PORT: 5432
       DB_DATABASE: ecommerce
       DB_USERNAME: postgres
       DB_PASSWORD: password
+      
+      # Redis selon la doc Laravel
+      REDIS_CLIENT: phpredis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: 
+      REDIS_DB: 0
+      REDIS_CACHE_DB: 1
+      REDIS_SESSION_DB: 2
+      REDIS_QUEUE_DB: 3
+      REDIS_PREFIX: shoplux_cache
+      
+      # Cache
+      CACHE_STORE: redis
+      
+      # Session
+      SESSION_DRIVER: redis
+      SESSION_LIFETIME: 120
+      
+      # Queue
+      QUEUE_CONNECTION: redis
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - ecommerce-network
@@ -29,6 +56,7 @@ services:
   postgres:
     image: pgvector/pgvector:pg17
     init: true
+    restart: unless-stopped  # ✅ Ajout pour la cohérence
     ports:
       - "5432:5432"
     environment:
@@ -45,9 +73,44 @@ services:
       start_period: 5s
     networks:
       - ecommerce-network
+  
+  redis:
+    image: redis:8.0-alpine
+    init: true  # ✅ Ajout pour la cohérence
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --save 60 1 --loglevel warning
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - ecommerce-network
+
+  redis-insight:
+    image: redis/redisinsight:latest
+    init: true  # ✅ Ajout pour la cohérence
+    restart: unless-stopped  # ✅ Ajout pour la cohérence
+    ports:
+      - "5540:5540"
+    environment:
+      REDISINSIGHT_HOST: 0.0.0.0
+      REDISINSIGHT_PORT: 5540
+    depends_on:
+      redis:
+        condition: service_healthy  # ✅ Attendre que Redis soit prêt
+    networks:
+      - ecommerce-network
 
   pgadmin:
     image: dpage/pgadmin4:latest
+    init: true  # ✅ Ajout pour la cohérence
+    restart: unless-stopped  # ✅ Ajout pour la cohérence
     ports:
       - "5050:80"
     environment:
@@ -59,7 +122,8 @@ services:
       - pgadmin_data:/var/lib/pgadmin
       - ./docker/pgadmin/servers.json:/pgadmin4/servers.json
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy  # ✅ Attendre que PostgreSQL soit prêt
     networks:
       - ecommerce-network
 
@@ -70,3 +134,4 @@ networks:
 volumes:
   postgres_data:
   pgadmin_data:
+  redis_data:
