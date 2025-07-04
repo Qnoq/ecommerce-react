@@ -1,17 +1,19 @@
 <?php
 
 use Inertia\Inertia;
-use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\ProductController;
-use App\Http\Controllers\HomeController;
 
+// Changement de locale (en dehors du groupe middleware)
 Route::post('/locale', [LocaleController::class, 'change'])->name('locale.change');
 
-// Routes principales (avec middleware locale)
+// Routes principales avec middleware locale
 Route::middleware(['set.locale'])->group(function () {
     
+    // Page d'accueil
     Route::get('/', function () {
         return Inertia::render('welcome', [
             'user' => Auth::user(),
@@ -22,21 +24,24 @@ Route::middleware(['set.locale'])->group(function () {
         ]);
     })->name('home');
 
-    // Routes e-commerce produits
+    // Routes e-commerce produits - NETTOYÉES
     Route::get('/products', [ProductController::class, 'index'])->name('products.index');
-    Route::get('/products/search', [ProductController::class, 'search'])->name('products.search');
     Route::get('/products/{product}', [ProductController::class, 'show'])->name('products.show');
 
-    // Routes recherche avancée
+    // Routes de recherche - CONSOLIDÉES ET OPTIMISÉES
     Route::get('/search/live', [ProductController::class, 'liveSearch'])->name('search.live');
-    Route::get('/api/search', [ProductController::class, 'apiSearch'])->name('api.search');
+    Route::get('/s', [ProductController::class, 'searchPage'])->name('search.page');
     Route::get('/api/suggestions', [ProductController::class, 'suggestions'])->name('api.suggestions');
 
-    // Route de test pour la recherche (développement seulement)
-    Route::get('/test-search', [ProductController::class, 'testSearch'])->name('test.search');
-    Route::get('/test-simple-search', [ProductController::class, 'testSimpleSearch'])->name('test.simple.search');
-    Route::get('/debug-products', [ProductController::class, 'debugProducts'])->name('debug.products');
+    // Analytics de recherche - SIMPLIFIÉES
+    Route::get('/api/popular-searches', [ProductController::class, 'popularSearches'])->name('api.popular.searches');
+    
+    // Routes admin pour gestion cache (seulement si vraiment nécessaire)
+    Route::middleware(['auth', 'admin'])->group(function () {
+        Route::delete('/admin/cache/search', [ProductController::class, 'clearSearchCache'])->name('admin.cache.search.clear');
+    });
 
+    // Route catégorie
     Route::get('/categories/{slug}', function ($slug) {
         return Inertia::render('categories/show', compact('slug'));
     })->name('categories.show');

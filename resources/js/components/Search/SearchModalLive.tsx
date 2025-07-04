@@ -5,7 +5,9 @@ import { router, usePage } from '@inertiajs/react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Sheet, SheetContent, SheetHeader } from '@/components/ui/sheet'
+import { useSearchContext } from '@/contexts/SearchContext'
 
+// Types inchangés
 interface Product {
   id: string
   uuid: string
@@ -28,69 +30,47 @@ interface SearchModalLiveProps {
 export default function SearchModalLive({
   isOpen,
   onClose,
-  placeholder = "Recherchez une couleur"
+  placeholder = "Recherchez des produits..."
 }: SearchModalLiveProps) {
+  // État local simplifié - plus de gestion localStorage
   const [query, setQuery] = useState('')
   const [isSearching, setIsSearching] = useState(false)
-  const [recentSearches, setRecentSearches] = useState<string[]>([])
+  
+  // Utilisation du Context comme seule source de vérité
+  const { recentSearches, addRecentSearch } = useSearchContext()
 
   const inputRef = useRef<HTMLInputElement>(null)
   const debounceRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Récupérer les données de recherche depuis les props Inertia
+  // Récupération des données Inertia (inchangé)
   const page = usePage()
   const searchResults = (page.props as any).searchResults || {}
   const products: Product[] = searchResults.products?.data || []
   const totalResults = searchResults.products?.total || 0
   const suggestions = searchResults.suggestions || []
 
-  // Charger les recherches récentes
-  useEffect(() => {
-    const stored = localStorage.getItem('shoplux_recent_searches')
-    if (stored) {
-      try {
-        setRecentSearches(JSON.parse(stored))
-      } catch (e) {
-        console.error('Erreur lors du parsing des recherches récentes:', e)
-      }
-    }
-  }, [])
-
-  // Focus automatique quand on ouvre
+  // Focus automatique simplifié
   useEffect(() => {
     if (isOpen && inputRef.current) {
-      setTimeout(() => inputRef.current?.focus(), 100)
+      // Délai légèrement plus long pour s'assurer que la modale est complètement ouverte
+      const timer = setTimeout(() => inputRef.current?.focus(), 150)
+      return () => clearTimeout(timer)
     }
   }, [isOpen])
 
-  // Reset quand on ferme
+  // 🔧 CORRECTION: Nettoyage sans navigation automatique
   useEffect(() => {
     if (!isOpen) {
-      // Sauvegarder la requête dans les recherches récentes si valide
-      const trimmed = query.trim()
-      if (trimmed.length >= 2) {
-        const newRecent = [
-          trimmed,
-          ...recentSearches.filter((item) => item !== trimmed)
-        ].slice(0, 5)
-        setRecentSearches(newRecent)
-        localStorage.setItem('shoplux_recent_searches', JSON.stringify(newRecent))
-      }
-
+      // Réinitialiser seulement l'état local de ce composant
       setQuery('')
       setIsSearching(false)
-
-      // Nettoyer les résultats de recherche pour revenir à l'état initial
-      router.visit(window.location.pathname, {
-        preserveState: true,
-        preserveScroll: true,
-        only: [],
-        replace: true
-      })
+      
+      // 🚫 SUPPRIMÉ: Ne plus naviguer automatiquement car cela efface les paramètres URL
+      // La navigation doit être intentionnelle, pas automatique
     }
   }, [isOpen])
 
-  // Recherche live avec Inertia
+  // Fonction de recherche live inchangée mais simplifiée
   const performLiveSearch = useCallback((searchQuery: string) => {
     if (searchQuery.length < 2) {
       setIsSearching(false)
@@ -98,20 +78,18 @@ export default function SearchModalLive({
     }
 
     setIsSearching(true)
-
-    // Recherche live avec Inertia + preserveState pour garder le modal ouvert
     const searchUrl = `/search/live?q=${encodeURIComponent(searchQuery)}&modal=true`
     
     router.visit(searchUrl, {
       method: 'get',
-      preserveState: true,      // Garde l'état React (modal ouvert)
-      preserveScroll: true,     // Garde le scroll
-      only: ['searchResults'],  // Ne recharge que les résultats de recherche
+      preserveState: true,
+      preserveScroll: true,
+      only: ['searchResults'],
       onFinish: () => setIsSearching(false)
     })
   }, [])
 
-  // Debounce pour la recherche
+  // Gestion de la saisie avec debounce (inchangé)
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
     setQuery(value)
@@ -120,50 +98,49 @@ export default function SearchModalLive({
       clearTimeout(debounceRef.current)
     }
 
-    // Debounce la recherche live
     debounceRef.current = setTimeout(() => {
       performLiveSearch(value)
     }, 300)
   }
 
-  // Effectuer une recherche complète (navigation)
-  const performFullSearch = useCallback((searchQuery: string) => {
-    if (!searchQuery.trim()) return
-
+  // Fonction unifiée pour naviguer vers la page de recherche
+  const navigateToSearchPage = useCallback((searchQuery: string) => {
     const trimmedQuery = searchQuery.trim()
     
-    // Sauvegarder dans l'historique
-    const newRecent = [
-      trimmedQuery,
-      ...recentSearches.filter(item => item !== trimmedQuery)
-    ].slice(0, 5)
-    
-    setRecentSearches(newRecent)
-    localStorage.setItem('shoplux_recent_searches', JSON.stringify(newRecent))
-
-    // Fermer le modal et naviguer vers la page de recherche complète
-    onClose()
-    router.get('/products', { search: trimmedQuery })
-  }, [onClose, recentSearches])
-
-  // Navigation vers un produit
-  const navigateToProduct = useCallback((productUuid: string, productName: string) => {
-    // Sauvegarder la recherche actuelle dans l'historique
-    if (query.trim().length >= 2) {
-      const newRecent = [
-        query.trim(),
-        ...recentSearches.filter(item => item !== query.trim())
-      ].slice(0, 5)
+    if (trimmedQuery.length >= 2) {
+      // Utiliser le Context pour gérer les recherches récentes
+      addRecentSearch(trimmedQuery)
       
-      setRecentSearches(newRecent)
-      localStorage.setItem('shoplux_recent_searches', JSON.stringify(newRecent))
+      // Fermer la modale et naviguer
+      onClose()
+      // 🔧 CORRECTION: Utiliser router.visit pour cohérence
+      router.visit(`/s?k=${encodeURIComponent(trimmedQuery)}`, {
+        method: 'get',
+        preserveScroll: false,
+        preserveState: false
+      })
+    }
+  }, [addRecentSearch, onClose])
+
+  // Navigation vers un produit simplifiée
+  const navigateToProduct = useCallback((productUuid: string, productName: string) => {
+    // Sauvegarder la recherche actuelle si elle est valide
+    if (query.trim().length >= 2) {
+      addRecentSearch(query.trim())
     }
     
     onClose()
     router.visit(`/products/${productUuid}`)
-  }, [onClose, query, recentSearches])
+  }, [addRecentSearch, onClose, query])
 
-  // Cards promotionnelles (état initial)
+  // Navigation vers une suggestion
+  const navigateToSuggestion = useCallback((suggestion: any) => {
+    addRecentSearch(suggestion.title)
+    onClose()
+    router.visit(suggestion.url)
+  }, [addRecentSearch, onClose])
+
+  // Cards promotionnelles (inchangé mais peut être externalisé)
   const promotionalCards = [
     {
       id: 'nouveautes',
@@ -191,13 +168,12 @@ export default function SearchModalLive({
     }
   ]
 
-  // Si on a une query active, on affiche les résultats
   const showResults = query.length >= 2
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent side="top" className="h-full w-full p-0 max-w-none">
-        {/* Header fixe */}
+        {/* Header avec barre de recherche */}
         <SheetHeader className="border-b bg-background p-4 space-y-4">
           <h2 className="text-lg font-semibold">Recherche</h2>
 
@@ -209,7 +185,7 @@ export default function SearchModalLive({
               type="text"
               value={query}
               onChange={handleInputChange}
-              onKeyDown={(e) => e.key === 'Enter' && performFullSearch(query)}
+              onKeyDown={(e) => e.key === 'Enter' && navigateToSearchPage(query)}
               placeholder={placeholder}
               className="w-full pl-10 pr-10 py-3 text-base border border-input rounded-lg bg-muted/50 focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
             />
@@ -224,7 +200,7 @@ export default function SearchModalLive({
             )}
           </div>
 
-          {/* Barre de résultats si recherche active */}
+          {/* Barre de résultats et actions */}
           {showResults && (
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">
@@ -235,23 +211,28 @@ export default function SearchModalLive({
                   <SlidersHorizontal className="h-4 w-4 mr-2" />
                   Filtrer
                 </Button>
-                <Button 
-                  size="sm"
-                  onClick={() => performFullSearch(query)}
-                >
-                  Voir tout
-                </Button>
+                
+                {/* Bouton "Voir tous les résultats" simplifié */}
+                {totalResults > 5 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigateToSearchPage(query)}
+                  >
+                    Voir tous les {totalResults} résultats
+                  </Button>
+                )}
               </div>
             </div>
           )}
         </SheetHeader>
 
-        {/* Contenu scrollable */}
+        {/* Contenu principal */}
         <div className="flex-1 overflow-y-auto bg-background">
           {!showResults ? (
-            /* État initial : Cards promotionnelles */
+            /* État initial avec recherches récentes et cards promotionnelles */
             <div className="p-4 space-y-4">
-              {/* Recherches récentes si disponibles */}
+              {/* Recherches récentes utilisant le Context */}
               {recentSearches.length > 0 && (
                 <div className="space-y-2">
                   <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
@@ -263,7 +244,7 @@ export default function SearchModalLive({
                         key={index}
                         variant="outline"
                         size="sm"
-                        onClick={() => performFullSearch(search)}
+                        onClick={() => navigateToSearchPage(search)}
                         className="text-sm"
                       >
                         {search}
@@ -306,9 +287,9 @@ export default function SearchModalLive({
               </div>
             </div>
           ) : (
-            /* État recherche : Suggestions + Produits live */
+            /* État de recherche avec résultats */
             <div className="space-y-4">
-              {/* Suggestions de recherche */}
+              {/* Suggestions */}
               {suggestions.length > 0 && (
                 <div className="px-4 py-2 border-b">
                   <div className="flex flex-wrap gap-2">
@@ -318,10 +299,7 @@ export default function SearchModalLive({
                         key={suggestion.id}
                         variant="outline"
                         size="sm"
-                        onClick={() => {
-                          onClose()
-                          router.visit(suggestion.url)
-                        }}
+                        onClick={() => navigateToSuggestion(suggestion)}
                         className="text-sm"
                       >
                         {suggestion.title}
@@ -331,7 +309,7 @@ export default function SearchModalLive({
                 </div>
               )}
 
-              {/* Grille de produits live */}
+              {/* Grille de produits */}
               {isSearching ? (
                 <div className="text-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
@@ -345,7 +323,7 @@ export default function SearchModalLive({
                       className="bg-card border border-border rounded-lg overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
                       onClick={() => navigateToProduct(product.uuid, product.name)}
                     >
-                      {/* Image */}
+                      {/* Image du produit */}
                       <div className="relative aspect-square">
                         {product.featured_image ? (
                           <img
@@ -359,7 +337,7 @@ export default function SearchModalLive({
                           </div>
                         )}
                         
-                        {/* Badges */}
+                        {/* Badges produit */}
                         <div className="absolute top-2 left-2 space-y-1">
                           {product.badges?.map((badge, index) => (
                             <Badge key={index} variant="secondary" className="text-xs">
@@ -369,9 +347,9 @@ export default function SearchModalLive({
                         </div>
                       </div>
 
-                      {/* Contenu */}
+                      {/* Informations produit */}
                       <div className="p-3 space-y-2">
-                        {/* Rating */}
+                        {/* Évaluation */}
                         {product.rating && (
                           <div className="flex items-center gap-1">
                             <div className="flex">
@@ -388,12 +366,12 @@ export default function SearchModalLive({
                               ))}
                             </div>
                             <span className="text-xs text-muted-foreground">
-                              ({product.review_count})
+                              ({product.review_count || 0})
                             </span>
                           </div>
                         )}
 
-                        {/* Nom */}
+                        {/* Nom du produit */}
                         <h3 className="font-medium text-sm line-clamp-2 text-card-foreground">
                           {product.name}
                         </h3>
@@ -403,13 +381,13 @@ export default function SearchModalLive({
                           {product.price.toFixed(2)} €
                         </div>
 
-                        {/* Bouton Ajouter */}
+                        {/* Bouton d'ajout au panier */}
                         <Button
                           size="sm"
                           className="w-full"
                           onClick={(e) => {
                             e.stopPropagation()
-                            // Logique ajout panier
+                            // Logique d'ajout au panier à implémenter
                           }}
                         >
                           <ShoppingBag className="h-3 w-3 mr-1" />
@@ -420,13 +398,14 @@ export default function SearchModalLive({
                   ))}
                 </div>
               ) : query.length >= 2 ? (
+                /* Aucun résultat trouvé */
                 <div className="text-center py-8">
                   <Search className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
                   <p className="text-muted-foreground">Aucun produit trouvé pour "{query}"</p>
                   <Button 
                     variant="outline" 
                     className="mt-4"
-                    onClick={() => performFullSearch(query)}
+                    onClick={() => navigateToSearchPage(query)}
                   >
                     Rechercher dans tout le catalogue
                   </Button>
@@ -438,4 +417,4 @@ export default function SearchModalLive({
       </SheetContent>
     </Sheet>
   )
-} 
+}

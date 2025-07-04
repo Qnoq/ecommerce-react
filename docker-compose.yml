@@ -60,9 +60,15 @@ services:
     ports:
       - "5432:5432"
     environment:
+      # Variables pour la création initiale de la base
       POSTGRES_DB: ecommerce
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
+      
+      # Variables pour les outils PostgreSQL (comme pg_isready)
+      PGUSER: postgres
+      PGDATABASE: ecommerce
+      PGPASSWORD: password
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:

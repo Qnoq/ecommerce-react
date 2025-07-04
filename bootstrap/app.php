@@ -24,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
         $middleware->alias([
             'set.locale' => \App\Http\Middleware\SetLocale::class,
+            'local-only' => \App\Http\Middleware\LocalOnly::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

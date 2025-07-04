@@ -41,6 +41,7 @@ import { useTranslation } from '@/hooks/useTranslation'
 import { Breadcrumbs } from '@/components/breadcrumbs'
 import { Toaster } from '@/components/ui/sonner'
 import { SearchWithSuggestions, SearchModalLive } from '@/components/Search'
+import { SearchProvider } from '@/contexts/SearchContext'
 
 interface EcommerceLayoutProps {
   children: React.ReactNode
@@ -75,7 +76,12 @@ export default function EcommerceLayout({
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false)
 
   const handleSearch = (query: string) => {
-    router.get('/products', { search: query })
+    // 🔧 CORRECTION: Utiliser la même URL que SearchWithSuggestions pour éviter les conflits
+    router.visit(`/s?k=${encodeURIComponent(query)}`, {
+      method: 'get',
+      preserveScroll: false,
+      preserveState: false,
+    })
   }
 
   const mainCategories = [
@@ -87,6 +93,7 @@ export default function EcommerceLayout({
   ]
 
   return (
+    <SearchProvider>
     <div className="min-h-screen bg-background">
       {/* Skip link for accessibility */}
       <a 
@@ -628,5 +635,6 @@ export default function EcommerceLayout({
       {/* Toast Container */}
       <Toaster />
     </div>
+    </SearchProvider>
   )
 }
