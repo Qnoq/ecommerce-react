@@ -1,14 +1,12 @@
 import React from 'react'
-import { Search, X, SlidersHorizontal } from 'lucide-react'
+import { Search, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { usePage } from '@inertiajs/react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetHeader } from '@/components/ui/sheet'
 import { useSearchContext } from '@/contexts/SearchContext'
 import { useSearchModal } from '@/hooks/useSearchModal'
 import { PROMOTIONAL_CARDS } from '@/data/promotionalCards'
-import ProductCardCompact from '@/components/Product/ProductCardCompact'
-import type { Product, SearchSuggestion } from '@/types/index.d.ts'
+import type { SearchSuggestion } from '@/types/index.d.ts'
 
 // Types importés depuis @/types
 
@@ -27,6 +25,7 @@ export default function SearchModalLive({
   const {
     query,
     isSearching,
+    suggestions,
     inputRef,
     handleInputChange,
     handleKeyDown,
@@ -38,24 +37,8 @@ export default function SearchModalLive({
     showResults
   } = useSearchModal({ isOpen, onClose, enableLiveSearch: true })
 
-  // Récupération des données Inertia
-  const page = usePage()
-  const searchResults = (page.props as any).searchResults || {}
-  const products: Product[] = searchResults.products?.data || []
-  const totalResults = searchResults.products?.total || 0
-  const suggestions: SearchSuggestion[] = searchResults.suggestions || []
-
-  // Pas besoin de useEffect, tout est géré par useSearchModal
-
-  // Gestion spécifique pour SearchModalLive
-  const handleProductClick = (uuid: string, name: string) => {
-    navigateToProduct({ uuid, name } as Product)
-  }
-
-  const handleAddToCart = (product: Product) => {
-    // Logique d'ajout au panier à implémenter
-    console.log('Ajout au panier:', product.name)
-  }
+  // Utilisation des suggestions
+  const searchSuggestions: SearchSuggestion[] = suggestions || []
 
   // Utilisation des données externalisées
 
@@ -93,24 +76,17 @@ export default function SearchModalLive({
           {showResults && (
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">
-                {isSearching ? 'Recherche...' : `${totalResults} articles`}
+                {isSearching ? 'Recherche de suggestions...' : `${searchSuggestions.length} suggestions`}
               </span>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm">
-                  <SlidersHorizontal className="h-4 w-4 mr-2" />
-                  Filtrer
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigateToSearchPage(query)}
+                  className="text-sm"
+                >
+                  Voir tous les résultats
                 </Button>
-                
-                {/* Bouton "Voir tous les résultats" simplifié */}
-                {totalResults > 5 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => navigateToSearchPage(query)}
-                  >
-                    Voir tous les {totalResults} résultats
-                  </Button>
-                )}
               </div>
             </div>
           )}
@@ -173,50 +149,60 @@ export default function SearchModalLive({
               </div>
             </div>
           ) : (
-            /* État de recherche avec résultats */
+            /* État de recherche avec suggestions */
             <div className="space-y-4">
-              {/* Suggestions */}
-              {suggestions.length > 0 && (
-                <div className="px-4 py-2 border-b">
-                  <div className="flex flex-wrap gap-2">
-                    <span className="text-sm text-muted-foreground">Suggestions :</span>
-                    {suggestions.slice(0, 3).map((suggestion) => (
-                      <Button
-                        key={suggestion.id}
-                        variant="outline"
-                        size="sm"
-                        onClick={() => navigateToSuggestion(suggestion)}
-                        className="text-sm"
-                      >
-                        {suggestion.title}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Grille de produits */}
               {isSearching ? (
                 <div className="text-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-                  <p className="text-muted-foreground">Recherche en cours...</p>
+                  <p className="text-muted-foreground">Recherche de suggestions...</p>
                 </div>
-              ) : products.length > 0 ? (
-                <div className="grid grid-cols-2 gap-4 p-4">
-                  {products.map((product) => (
-                    <ProductCardCompact
-                      key={product.uuid}
-                      product={product}
-                      onNavigate={handleProductClick}
-                      onAddToCart={handleAddToCart}
-                    />
-                  ))}
+              ) : searchSuggestions.length > 0 ? (
+                <div className="p-4 space-y-4">
+                  {/* Suggestions de recherche */}
+                  <div className="space-y-2">
+                    <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                      Suggestions de recherche
+                    </h3>
+                    <div className="space-y-1">
+                      {searchSuggestions.map((suggestion, index) => (
+                        <Button
+                          key={index}
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => navigateToSearchPage(suggestion.title)}
+                          className="w-full justify-start text-left h-auto py-3 px-4 hover:bg-muted/50"
+                        >
+                          <Search className="h-4 w-4 mr-3 text-muted-foreground" />
+                          <div className="flex-1">
+                            <div className="font-medium">{suggestion.title}</div>
+                            {suggestion.description && (
+                              <div className="text-xs text-muted-foreground mt-1">
+                                {suggestion.description}
+                              </div>
+                            )}
+                          </div>
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Bouton pour voir tous les résultats */}
+                  <div className="pt-4 border-t">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigateToSearchPage(query)}
+                      className="w-full"
+                    >
+                      Voir tous les résultats pour "{query}"
+                    </Button>
+                  </div>
                 </div>
               ) : query.length >= 2 ? (
-                /* Aucun résultat trouvé */
+                /* Aucune suggestion trouvée */
                 <div className="text-center py-8">
                   <Search className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-muted-foreground">Aucun produit trouvé pour "{query}"</p>
+                  <p className="text-muted-foreground">Aucune suggestion trouvée pour "{query}"</p>
                   <Button 
                     variant="outline" 
                     className="mt-4"

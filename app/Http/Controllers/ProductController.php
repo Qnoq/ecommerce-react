@@ -93,7 +93,7 @@ class ProductController extends Controller
      */
     public function suggestions(Request $request)
     {
-        $query = $request->get('q', '');
+        $query = $request->get('query', $request->get('q', ''));
         
         if (strlen($query) < 2) {
             return response()->json(['suggestions' => []]);
@@ -140,6 +140,38 @@ class ProductController extends Controller
             'searchResults' => $results,
             'currentFilters' => $filters,
             'filters' => $this->getAvailableFilters()
+        ]);
+    }
+
+    /**
+     * API de recherche pour la modal (retourne JSON)
+     */
+    public function searchApi(Request $request)
+    {
+        $query = $request->input('k', '');
+        $limit = $request->input('limit', 10);
+        
+        if (empty($query) || strlen(trim($query)) < 2) {
+            return response()->json([
+                'products' => [],
+                'totalResults' => 0,
+                'query' => $query
+            ]);
+        }
+
+        // Recherche avec cache
+        $cacheKey = 'search_api:' . md5(strtolower($query) . $limit);
+        $results = Cache::remember($cacheKey, 300, function () use ($query, $limit) {
+            return $this->performSearch($query, $limit);
+        });
+
+        // Analytics
+        $this->trackSearchAnalytics($query);
+
+        return response()->json([
+            'products' => $results['products'],
+            'totalResults' => $results['totalResults'],
+            'query' => $query
         ]);
     }
 

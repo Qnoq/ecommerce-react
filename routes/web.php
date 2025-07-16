@@ -26,11 +26,12 @@ Route::middleware(['set.locale'])->group(function () {
 
     // Routes e-commerce produits - NETTOYÉES
     Route::get('/products', [ProductController::class, 'index'])->name('products.index');
+    Route::get('/products/suggestions', [ProductController::class, 'suggestions'])->name('products.suggestions');
     Route::get('/products/{product}', [ProductController::class, 'show'])->name('products.show');
 
     // Routes de recherche - UNIFIÉES STYLE AMAZON
     Route::get('/s', [ProductController::class, 'searchPage'])->name('search.page');
-    Route::get('/products/suggestions', [ProductController::class, 'suggestions'])->name('products.suggestions');
+    Route::get('/api/search', [ProductController::class, 'searchApi'])->name('search.api');
 
     // Analytics de recherche - SIMPLIFIÉES
     Route::get('/api/popular-searches', [ProductController::class, 'popularSearches'])->name('api.popular.searches');

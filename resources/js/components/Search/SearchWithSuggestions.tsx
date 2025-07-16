@@ -3,6 +3,7 @@ import { Search, X, Clock, ShoppingBag } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { router, usePage } from '@inertiajs/react'
 import { useSearchContext } from '@/contexts/SearchContext'
+import { formatPrice } from '@/utils/price'
 
 // Types inchangés
 interface Product {
@@ -307,7 +308,7 @@ export default function SearchWithSuggestions({
                         {product.name}
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        {product.price.toFixed(2)} €
+                        {formatPrice(product.price)}
                       </div>
                     </div>
                   </div>

@@ -2,14 +2,14 @@
 import React, { useState, useEffect } from 'react';
 import { Head, router, Link } from '@inertiajs/react';
 import EcommerceLayout from '@/layouts/EcommerceLayout';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Search, Filter, Star, ShoppingBag, ArrowLeft, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatPrice } from '@/utils/price';
 
 // Import des types depuis le fichier centralisé
-import type { Product, Category, PriceRange, SearchResults, SearchFilters } from '@/types/search';
+import type { Product, SearchResults, SearchFilters } from '@/types/search';
 
 interface SearchPageProps {
     searchQuery: string;
@@ -24,8 +24,8 @@ export default function SearchPage({
 }: SearchPageProps) {
     // Props de recherche reçues
     
-    const [currentQuery, setCurrentQuery] = useState(searchQuery || '');
     const [showFilters, setShowFilters] = useState(false);
+    const [isLiveSearching, setIsLiveSearching] = useState(false);
     
     // Extraire les données de façon sécurisée
     const products = searchResults?.products?.data || [];
@@ -34,10 +34,27 @@ export default function SearchPage({
     const lastPage = searchResults?.products?.last_page || 1;
     const suggestions = searchResults?.suggestions || [];
     const executionTime = searchResults?.executionTime || 0;
-    
-    // Synchroniser l'input avec la query de l'URL
+
+    // Surveiller les changements d'URL pour la recherche live
     useEffect(() => {
-        setCurrentQuery(searchQuery || '');
+        const handlePopState = () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const newQuery = urlParams.get('k') || '';
+            
+            if (newQuery && newQuery !== searchQuery) {
+                setIsLiveSearching(true);
+                router.visit(`/s?k=${encodeURIComponent(newQuery)}`, {
+                    method: 'get',
+                    preserveState: true,
+                    preserveScroll: true,
+                    only: ['searchResults'],
+                    onFinish: () => setIsLiveSearching(false)
+                });
+            }
+        };
+
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
     }, [searchQuery]);
     
     // Fonction pour effectuer une nouvelle recherche
@@ -96,28 +113,6 @@ export default function SearchPage({
             <Head title={searchQuery ? `Recherche: ${searchQuery} | ShopLux` : 'Recherche | ShopLux'} />
             
             <div className="container mx-auto px-4 py-8">
-                {/* Barre de recherche principale */}
-                <div className="max-w-2xl mx-auto mb-8">
-                    <div className="flex gap-2">
-                        <div className="relative flex-1">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                            <Input
-                                type="text"
-                                value={currentQuery}
-                                onChange={(e) => setCurrentQuery(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleSearch(currentQuery)}
-                                placeholder="Rechercher des produits..."
-                                className="pl-10"
-                            />
-                        </div>
-                        <Button 
-                            onClick={() => handleSearch(currentQuery)}
-                            className="px-6"
-                        >
-                            <Search className="h-4 w-4" />
-                        </Button>
-                    </div>
-                </div>
                 
                 {/* Contenu principal */}
                 {searchQuery ? (
@@ -130,7 +125,13 @@ export default function SearchPage({
                                 </h1>
                                 <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                                     <span>{totalResults} produits trouvés</span>
-                                    {executionTime > 0 && (
+                                    {isLiveSearching && (
+                                        <span className="flex items-center gap-1">
+                                            <div className="animate-spin h-3 w-3 border border-primary border-t-transparent rounded-full"></div>
+                                            Recherche en cours...
+                                        </span>
+                                    )}
+                                    {!isLiveSearching && executionTime > 0 && (
                                         <span>en {executionTime}ms</span>
                                     )}
                                 </div>
@@ -354,7 +355,7 @@ function ProductCard({ product }: { product: Product }) {
 
                 {/* Prix */}
                 <div className="font-bold text-lg text-primary">
-                    {product.price.toFixed(2)} €
+                    {formatPrice(product.price)}
                 </div>
             </div>
         </Link>

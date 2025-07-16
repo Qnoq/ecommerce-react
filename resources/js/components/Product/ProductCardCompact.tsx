@@ -3,6 +3,7 @@ import { Star, ShoppingBag } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { formatPricePrefix, hasDiscount } from '@/utils/price'
 import type { Product } from '@/types/index.d.ts'
 
 interface ProductCardCompactProps {
@@ -102,11 +103,11 @@ export default function ProductCardCompact({
         {/* Prix */}
         <div className="flex items-center space-x-2">
           <span className="font-bold text-primary">
-            {product.price.toFixed(2)} €
+            {formatPricePrefix(product.price)}
           </span>
-          {product.originalPrice && (
+          {hasDiscount(product.original_price, product.price) && (
             <span className="text-xs text-muted-foreground line-through">
-              {product.originalPrice.toFixed(2)} €
+              {formatPricePrefix(product.original_price)}
             </span>
           )}
         </div>

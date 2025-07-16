@@ -12,6 +12,7 @@ interface UseSearchModalOptions {
 export function useSearchModal({ isOpen, onClose, enableLiveSearch = false }: UseSearchModalOptions) {
   const [query, setQuery] = useState('')
   const [isSearching, setIsSearching] = useState(false)
+  const [suggestions, setSuggestions] = useState<any[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
   const debounceRef = useRef<NodeJS.Timeout | null>(null)
   const saveSearchRef = useRef<NodeJS.Timeout | null>(null)
@@ -31,6 +32,7 @@ export function useSearchModal({ isOpen, onClose, enableLiveSearch = false }: Us
     if (!isOpen) {
       setQuery('')
       setIsSearching(false)
+      setSuggestions([])
       // Nettoyer les timers
       if (debounceRef.current) {
         clearTimeout(debounceRef.current)
@@ -40,42 +42,6 @@ export function useSearchModal({ isOpen, onClose, enableLiveSearch = false }: Us
       }
     }
   }, [isOpen])
-
-  // Gestion du changement de query
-  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value
-    setQuery(value)
-
-    if (enableLiveSearch) {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current)
-      }
-      if (saveSearchRef.current) {
-        clearTimeout(saveSearchRef.current)
-      }
-
-      debounceRef.current = setTimeout(() => {
-        if (value.length >= 2) {
-          setIsSearching(true)
-          
-          const searchUrl = `/s?k=${encodeURIComponent(value)}`
-          
-          router.visit(searchUrl, {
-            method: 'get',
-            preserveState: true,
-            preserveScroll: true,
-            only: ['searchResults'],
-            onFinish: () => setIsSearching(false)
-          })
-
-          // Sauvegarder dans les recherches récentes après 2 secondes (l'utilisateur a eu le temps de voir les résultats)
-          saveSearchRef.current = setTimeout(() => {
-            addRecentSearch(value.trim())
-          }, 2000)
-        }
-      }, 300)
-    }
-  }, [enableLiveSearch, addRecentSearch])
 
   // Navigation vers la page de recherche complète
   const navigateToSearchPage = useCallback((searchQuery: string) => {
@@ -91,6 +57,40 @@ export function useSearchModal({ isOpen, onClose, enableLiveSearch = false }: Us
       })
     }
   }, [addRecentSearch, onClose])
+
+  // Fonction pour récupérer les suggestions
+  const fetchSuggestions = useCallback(async (searchValue: string) => {
+    if (searchValue.length >= 2) {
+      setIsSearching(true)
+      try {
+        const response = await fetch(`/products/suggestions?query=${encodeURIComponent(searchValue)}`)
+        const data = await response.json()
+        setSuggestions(data.suggestions || [])
+      } catch (error) {
+        console.error('Erreur lors de la récupération des suggestions:', error)
+        setSuggestions([])
+      } finally {
+        setIsSearching(false)
+      }
+    } else {
+      setSuggestions([])
+    }
+  }, [])
+
+  // Gestion du changement de query
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setQuery(value)
+
+    // Récupérer les suggestions avec debounce
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current)
+    }
+    
+    debounceRef.current = setTimeout(() => {
+      fetchSuggestions(value)
+    }, 300) // Debounce plus court pour les suggestions
+  }, [fetchSuggestions])
 
   // Navigation vers un produit
   const navigateToProduct = useCallback((product: Product) => {
@@ -127,6 +127,7 @@ export function useSearchModal({ isOpen, onClose, enableLiveSearch = false }: Us
   // Gestion de la touche Entrée
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
+      // Toujours naviguer vers la page de recherche avec live search
       navigateToSearchPage(query)
     }
   }, [query, navigateToSearchPage])
@@ -143,6 +144,7 @@ export function useSearchModal({ isOpen, onClose, enableLiveSearch = false }: Us
     // État
     query,
     isSearching,
+    suggestions,
     inputRef,
     
     // Actions

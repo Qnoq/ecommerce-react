@@ -97,12 +97,61 @@ class ProductSeeder extends Seeder
     private function getElectronicsProducts(): array
     {
         return [
+            // === IPHONES ===
+            [
+                'name' => 'iPhone 16 Pro Max 1TB',
+                'short_description' => 'Le tout nouveau iPhone 16 Pro Max avec puce A18 Pro et Intelligence Apple.',
+                'description' => 'L\'iPhone 16 Pro Max inaugure une nouvelle ère avec sa puce A18 Pro, l\'Intelligence Apple intégrée et un système de caméra encore plus avancé. Design en titane premium et autonomie record.',
+                'price' => 1479.00,
+                'original_price' => 1579.00,
+                'images' => [
+                    'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=500&h=500&fit=crop',
+                    'https://images.unsplash.com/photo-1565849904461-04a58ad377e0?w=500&h=500&fit=crop'
+                ],
+                'attributes' => [
+                    'color' => ['Titane noir', 'Titane naturel', 'Titane blanc', 'Titane désert'],
+                    'storage' => ['256GB', '512GB', '1TB'],
+                    'brand' => 'Apple'
+                ]
+            ],
+            [
+                'name' => 'iPhone 16 Pro 512GB',
+                'short_description' => 'iPhone 16 Pro avec puce A18 Pro et nouvelle fonctionnalité Camera Control.',
+                'description' => 'L\'iPhone 16 Pro offre des performances exceptionnelles avec sa puce A18 Pro, le nouveau bouton Camera Control et des fonctionnalités IA avancées pour les créateurs.',
+                'price' => 1229.00,
+                'original_price' => 1329.00,
+                'images' => [
+                    'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=500&h=500&fit=crop',
+                    'https://images.unsplash.com/photo-1565849904461-04a58ad377e0?w=500&h=500&fit=crop'
+                ],
+                'attributes' => [
+                    'color' => ['Titane noir', 'Titane naturel', 'Titane blanc', 'Titane désert'],
+                    'storage' => ['128GB', '256GB', '512GB', '1TB'],
+                    'brand' => 'Apple'
+                ]
+            ],
+            [
+                'name' => 'iPhone 16 256GB',
+                'short_description' => 'iPhone 16 avec puce A18 et nouvelles couleurs vibrantes.',
+                'description' => 'L\'iPhone 16 propose des performances incroyables avec la puce A18, un nouveau design avec des couleurs éclatantes et toutes les fonctionnalités essentielles d\'iOS 18.',
+                'price' => 969.00,
+                'original_price' => 1069.00,
+                'images' => [
+                    'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=500&h=500&fit=crop',
+                    'https://images.unsplash.com/photo-1565849904461-04a58ad377e0?w=500&h=500&fit=crop'
+                ],
+                'attributes' => [
+                    'color' => ['Noir', 'Blanc', 'Rose', 'Vert sarcelle', 'Bleu outremer'],
+                    'storage' => ['128GB', '256GB', '512GB'],
+                    'brand' => 'Apple'
+                ]
+            ],
             [
                 'name' => 'iPhone 15 Pro Max 256GB',
                 'short_description' => 'Le smartphone le plus avancé d\'Apple avec puce A17 Pro et appareil photo professionnel.',
                 'description' => 'L\'iPhone 15 Pro Max redéfinit l\'innovation mobile avec sa puce A17 Pro révolutionnaire, son système de caméra Pro avancé et son design en titane ultraléger. Profitez d\'une autonomie exceptionnelle et de performances inégalées.',
-                'price' => 1229.00,
-                'original_price' => 1329.00,
+                'price' => 1129.00,
+                'original_price' => 1229.00,
                 'images' => [
                     'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=500&h=500&fit=crop',
                     'https://images.unsplash.com/photo-1565849904461-04a58ad377e0?w=500&h=500&fit=crop'
@@ -113,6 +162,22 @@ class ProductSeeder extends Seeder
                     'brand' => 'Apple'
                 ]
             ],
+            [
+                'name' => 'iPhone 15 128GB',
+                'short_description' => 'iPhone 15 avec puce A16 Bionic et connecteur USB-C.',
+                'description' => 'L\'iPhone 15 introduit l\'USB-C, la puce A16 Bionic et un appareil photo principal de 48MP. Un excellent smartphone pour tous les usages quotidiens.',
+                'price' => 869.00,
+                'original_price' => 969.00,
+                'images' => [
+                    'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=500&h=500&fit=crop'
+                ],
+                'attributes' => [
+                    'color' => ['Noir', 'Bleu', 'Vert', 'Jaune', 'Rose'],
+                    'storage' => ['128GB', '256GB', '512GB'],
+                    'brand' => 'Apple'
+                ]
+            ],
+            // === MACBOOKS ===
             [
                 'name' => 'MacBook Pro 14" M3 Pro',
                 'short_description' => 'Ordinateur portable professionnel avec puce M3 Pro pour une performance exceptionnelle.',
@@ -126,6 +191,67 @@ class ProductSeeder extends Seeder
                     'color' => ['Gris sidéral', 'Argent'],
                     'memory' => ['18GB', '36GB'],
                     'storage' => ['512GB', '1TB', '2TB', '4TB'],
+                    'brand' => 'Apple'
+                ]
+            ],
+            [
+                'name' => 'MacBook Pro 16" M3 Max',
+                'short_description' => 'Le MacBook Pro le plus puissant avec puce M3 Max pour les créatifs professionnels.',
+                'description' => 'Le MacBook Pro 16 pouces avec puce M3 Max redéfinit les performances pour la création vidéo, le développement et les tâches les plus exigeantes. Écran de 16 pouces et autonomie exceptionnelle.',
+                'price' => 2799.00,
+                'images' => [
+                    'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=500&h=500&fit=crop',
+                    'https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=500&h=500&fit=crop'
+                ],
+                'attributes' => [
+                    'color' => ['Gris sidéral', 'Argent'],
+                    'memory' => ['36GB', '64GB', '128GB'],
+                    'storage' => ['1TB', '2TB', '4TB', '8TB'],
+                    'brand' => 'Apple'
+                ]
+            ],
+            [
+                'name' => 'MacBook Air 13" M3',
+                'short_description' => 'MacBook Air ultraléger avec puce M3 pour les étudiants et professionnels mobiles.',
+                'description' => 'Le MacBook Air 13 pouces avec puce M3 offre des performances exceptionnelles dans un design ultraléger. Parfait pour le travail quotidien, les études et les déplacements.',
+                'price' => 1299.00,
+                'images' => [
+                    'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=500&h=500&fit=crop'
+                ],
+                'attributes' => [
+                    'color' => ['Argent', 'Gris sidéral', 'Or', 'Bleu nuit'],
+                    'memory' => ['8GB', '16GB', '24GB'],
+                    'storage' => ['256GB', '512GB', '1TB', '2TB'],
+                    'brand' => 'Apple'
+                ]
+            ],
+            [
+                'name' => 'MacBook Air 15" M3',
+                'short_description' => 'MacBook Air 15 pouces avec puce M3 et grand écran Liquid Retina.',
+                'description' => 'Le MacBook Air 15 pouces combine la légèreté emblématique du Air avec un écran plus grand et la puissance de la puce M3. Idéal pour la productivité et le multimédia.',
+                'price' => 1599.00,
+                'images' => [
+                    'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=500&h=500&fit=crop'
+                ],
+                'attributes' => [
+                    'color' => ['Argent', 'Gris sidéral', 'Or', 'Bleu nuit'],
+                    'memory' => ['8GB', '16GB', '24GB'],
+                    'storage' => ['256GB', '512GB', '1TB', '2TB'],
+                    'brand' => 'Apple'
+                ]
+            ],
+            [
+                'name' => 'MacBook Pro 14" M3',
+                'short_description' => 'MacBook Pro 14 pouces avec puce M3 base pour les créateurs débutants.',
+                'description' => 'Le MacBook Pro 14 pouces avec puce M3 offre les performances Pro dans un format compact. Écran Liquid Retina XDR et connectivité professionnelle pour tous vos projets créatifs.',
+                'price' => 1999.00,
+                'images' => [
+                    'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=500&h=500&fit=crop'
+                ],
+                'attributes' => [
+                    'color' => ['Gris sidéral', 'Argent'],
+                    'memory' => ['8GB', '16GB', '24GB'],
+                    'storage' => ['512GB', '1TB', '2TB'],
                     'brand' => 'Apple'
                 ]
             ],
@@ -193,6 +319,37 @@ class ProductSeeder extends Seeder
                     'size' => ['XS', 'S', 'M', 'L', 'XL'],
                     'color' => ['Rose poudré', 'Bleu marine', 'Vert menthe'],
                     'material' => '100% Viscose',
+                    'care' => 'Lavage à 30°C'
+                ]
+            ],
+            [
+                'name' => 'Robe de soirée noire longue',
+                'short_description' => 'Robe de soirée élégante en satin noir avec dos ouvert.',
+                'description' => 'Robe de soirée sophistiquée en satin noir, parfaite pour les événements formels. Son dos ouvert et sa coupe fluide créent une silhouette gracieuse et moderne.',
+                'price' => 189.00,
+                'original_price' => 249.00,
+                'images' => [
+                    'https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=500&h=500&fit=crop'
+                ],
+                'attributes' => [
+                    'size' => ['XS', 'S', 'M', 'L', 'XL'],
+                    'color' => ['Noir', 'Bordeaux', 'Bleu nuit'],
+                    'material' => '95% Polyester, 5% Élasthanne',
+                    'care' => 'Nettoyage à sec'
+                ]
+            ],
+            [
+                'name' => 'Robe cocktail rouge asymétrique',
+                'short_description' => 'Robe cocktail moderne avec coupe asymétrique et tissu stretch.',
+                'description' => 'Robe cocktail audacieuse avec une coupe asymétrique tendance. Le tissu stretch épouse parfaitement la silhouette pour un look moderne et féminin.',
+                'price' => 129.00,
+                'images' => [
+                    'https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=500&h=500&fit=crop'
+                ],
+                'attributes' => [
+                    'size' => ['XS', 'S', 'M', 'L', 'XL'],
+                    'color' => ['Rouge', 'Emeraude', 'Noir'],
+                    'material' => '92% Polyester, 8% Élasthanne',
                     'care' => 'Lavage à 30°C'
                 ]
             ],

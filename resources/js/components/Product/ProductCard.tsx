@@ -1,6 +1,7 @@
 import { Link } from '@inertiajs/react';
 import { Heart, ShoppingCart, Eye } from 'lucide-react';
 import { useState } from 'react';
+import { formatPrice, hasDiscount } from '@/utils/price';
 import type { Product } from '@/types/index.d.ts';
 
 // Interface pour la compatibilité avec l'ancienne version
@@ -159,11 +160,11 @@ export default function ProductCard({
                 <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center space-x-2">
                         <span className="text-2xl font-bold text-blue-600">
-                            {product.price.toFixed(2)}€
+                            {formatPrice(product.price)}
                         </span>
-                        {product.originalPrice && (
+                        {hasDiscount(product.originalPrice, product.price) && (
                             <span className="text-sm text-gray-500 line-through">
-                                {product.originalPrice.toFixed(2)}€
+                                {formatPrice(product.originalPrice)}
                             </span>
                         )}
                     </div>
