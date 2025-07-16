@@ -68,7 +68,7 @@ export default function SearchWithSuggestions({
     }
 
     setIsSearching(true)
-    const searchUrl = `/search/live?q=${encodeURIComponent(searchQuery)}&modal=false`
+    const searchUrl = `/s?k=${encodeURIComponent(searchQuery)}`
     
     router.visit(searchUrl, {
       method: 'get',

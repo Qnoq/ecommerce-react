@@ -28,10 +28,9 @@ Route::middleware(['set.locale'])->group(function () {
     Route::get('/products', [ProductController::class, 'index'])->name('products.index');
     Route::get('/products/{product}', [ProductController::class, 'show'])->name('products.show');
 
-    // Routes de recherche - CONSOLIDÉES ET OPTIMISÉES
-    Route::get('/search/live', [ProductController::class, 'liveSearch'])->name('search.live');
+    // Routes de recherche - UNIFIÉES STYLE AMAZON
     Route::get('/s', [ProductController::class, 'searchPage'])->name('search.page');
-    Route::get('/api/suggestions', [ProductController::class, 'suggestions'])->name('api.suggestions');
+    Route::get('/products/suggestions', [ProductController::class, 'suggestions'])->name('products.suggestions');
 
     // Analytics de recherche - SIMPLIFIÉES
     Route::get('/api/popular-searches', [ProductController::class, 'popularSearches'])->name('api.popular.searches');

@@ -1,8 +1,10 @@
 import { Link } from '@inertiajs/react';
 import { Heart, ShoppingCart, Eye } from 'lucide-react';
 import { useState } from 'react';
+import type { Product } from '@/types/index.d.ts';
 
-interface Product {
+// Interface pour la compatibilité avec l'ancienne version
+interface LegacyProduct {
     id: number;
     name: string;
     price: number;
@@ -15,9 +17,9 @@ interface Product {
 }
 
 interface Props {
-    product: Product;
-    onAddToCart?: (productId: number) => void;
-    onToggleWishlist?: (productId: number) => void;
+    product: Product | LegacyProduct;
+    onAddToCart?: (productId: number | string) => void;
+    onToggleWishlist?: (productId: number | string) => void;
     isInWishlist?: boolean;
 }
 
@@ -53,7 +55,7 @@ export default function ProductCard({
         ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
         : 0;
 
-    const productUrl = product.slug ? `/products/${product.slug}` : `/products/${product.id}`;
+    const productUrl = product.slug ? `/products/${product.slug}` : `/products/${product.id || (product as Product).uuid}`;
 
     return (
         <div className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 group relative overflow-hidden">
@@ -81,7 +83,7 @@ export default function ProductCard({
                 <Link href={productUrl}>
                     {!imageError ? (
                         <img
-                            src={product.image}
+                            src={(product as LegacyProduct).image || (product as Product).featured_image || ''}
                             alt={product.name}
                             className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
                             onError={() => setImageError(true)}
@@ -145,9 +147,9 @@ export default function ProductCard({
                                 </svg>
                             ))}
                         </div>
-                        {product.reviewCount && (
+                        {((product as LegacyProduct).reviewCount || (product as Product).review_count) && (
                             <span className="ml-2 text-sm text-gray-500">
-                                ({product.reviewCount} avis)
+                                ({(product as LegacyProduct).reviewCount || (product as Product).review_count} avis)
                             </span>
                         )}
                     </div>

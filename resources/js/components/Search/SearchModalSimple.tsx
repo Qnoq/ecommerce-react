@@ -1,9 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React from 'react'
 import { Search, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { router } from '@inertiajs/react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetHeader } from '@/components/ui/sheet'
+import { useSearchContext } from '@/contexts/SearchContext'
+import { useSearchModal } from '@/hooks/useSearchModal'
+import { PROMOTIONAL_CARDS, POPULAR_CATEGORIES } from '@/data/promotionalCards'
 
 interface SearchModalSimpleProps {
   isOpen: boolean
@@ -16,90 +18,23 @@ export default function SearchModalSimple({
   onClose,
   placeholder = "Recherchez une couleur"
 }: SearchModalSimpleProps) {
-  const [query, setQuery] = useState('')
-  const [recentSearches, setRecentSearches] = useState<string[]>([])
+  const { recentSearches } = useSearchContext()
+  const {
+    query,
+    inputRef,
+    handleInputChange,
+    handleKeyDown,
+    clearQuery,
+    navigateToSearchPage,
+    navigateToUrl,
+    performSearch
+  } = useSearchModal({ isOpen, onClose })
 
-  const inputRef = useRef<HTMLInputElement>(null)
+  // Pas besoin de useEffect, tout est géré par useSearchModal et SearchContext
 
-  // Charger les recherches récentes
-  useEffect(() => {
-    const stored = localStorage.getItem('shoplux_recent_searches')
-    if (stored) {
-      try {
-        setRecentSearches(JSON.parse(stored))
-      } catch (e) {
-        console.error('Erreur lors du parsing des recherches récentes:', e)
-      }
-    }
-  }, [])
+  // La logique de recherche est gérée par useSearchModal
 
-  // Focus automatique quand on ouvre
-  useEffect(() => {
-    if (isOpen && inputRef.current) {
-      setTimeout(() => inputRef.current?.focus(), 100)
-    }
-  }, [isOpen])
-
-  // Reset quand on ferme
-  useEffect(() => {
-    if (!isOpen) {
-      setQuery('')
-    }
-  }, [isOpen])
-
-  // Effectuer une recherche avec navigation Inertia
-  const performSearch = (searchQuery: string) => {
-    if (!searchQuery.trim()) return
-
-    const trimmedQuery = searchQuery.trim()
-    
-    // Sauvegarder dans l'historique
-    const newRecent = [
-      trimmedQuery,
-      ...recentSearches.filter(item => item !== trimmedQuery)
-    ].slice(0, 5)
-    
-    setRecentSearches(newRecent)
-    localStorage.setItem('shoplux_recent_searches', JSON.stringify(newRecent))
-
-    // Fermer le modal et naviguer avec Inertia
-    onClose()
-    router.get('/products', { search: trimmedQuery })
-  }
-
-  // Cards promotionnelles (état principal)
-  const promotionalCards = [
-    {
-      id: 'nouveautes',
-      title: 'Découvrez nos actualités',
-      subtitle: 'Nouveautés',
-      image: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=600&h=300&fit=crop',
-      url: '/products?category=nouveautes',
-      className: 'bg-gradient-to-r from-blue-500 to-purple-600 text-white'
-    },
-    {
-      id: 'livraison',
-      title: 'LIVRAISON GRATUITE',
-      subtitle: 'À partir de 50€',
-      icon: '🚚',
-      url: '/livraison',
-      className: 'bg-gradient-to-r from-green-500 to-blue-500 text-white'
-    },
-    {
-      id: 'seconde-main',
-      title: 'La SECONDE MAIN des familles',
-      subtitle: '100% qualité, 100% style, 100% petits prix.',
-      icon: '♻️',
-      url: '/seconde-main',
-      className: 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
-    }
-  ]
-
-  // Navigation avec Inertia
-  const navigateToUrl = (url: string) => {
-    onClose()
-    router.visit(url)
-  }
+  // Utilisation des données externalisées
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
@@ -120,15 +55,15 @@ export default function SearchModalSimple({
               ref={inputRef}
               type="text"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && performSearch(query)}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
               placeholder={placeholder}
               className="w-full pl-10 pr-10 py-3 text-base border border-input rounded-lg bg-muted/50 focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
             />
             {query && (
               <button
                 type="button"
-                onClick={() => setQuery('')}
+                onClick={clearQuery}
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
               >
                 <X className="h-4 w-4" />
@@ -164,7 +99,7 @@ export default function SearchModalSimple({
                       key={index}
                       variant="outline"
                       size="sm"
-                      onClick={() => performSearch(search)}
+                      onClick={() => navigateToSearchPage(search)}
                       className="text-sm"
                     >
                       {search}
@@ -180,7 +115,7 @@ export default function SearchModalSimple({
                 Découvrez nos actualités
               </h3>
               
-              {promotionalCards.map((card) => (
+              {PROMOTIONAL_CARDS.map((card) => (
                 <div
                   key={card.id}
                   onClick={() => navigateToUrl(card.url)}
@@ -213,12 +148,7 @@ export default function SearchModalSimple({
                 Catégories populaires
               </h3>
               <div className="grid grid-cols-2 gap-3">
-                {[
-                  { name: 'T-shirts', slug: 't-shirts' },
-                  { name: 'Robes', slug: 'robes' },
-                  { name: 'Chaussures', slug: 'chaussures' },
-                  { name: 'Accessoires', slug: 'accessoires' }
-                ].map((category) => (
+                {POPULAR_CATEGORIES.map((category) => (
                   <Button
                     key={category.slug}
                     variant="outline"

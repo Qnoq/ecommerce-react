@@ -76,7 +76,7 @@ export default function EcommerceLayout({
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false)
 
   const handleSearch = (query: string) => {
-    // 🔧 CORRECTION: Utiliser la même URL que SearchWithSuggestions pour éviter les conflits
+    // Navigation vers la page de recherche unifiée (style Amazon)
     router.visit(`/s?k=${encodeURIComponent(query)}`, {
       method: 'get',
       preserveScroll: false,
@@ -277,17 +277,10 @@ export default function EcommerceLayout({
                   </Button>
                 </SheetTrigger>
                 <SheetContent side="right" className="w-full sm:w-96 p-0">
-                  {/* Header personnalisé avec croix unique */}
+                  <SheetTitle className="sr-only">{__('common.menu')}</SheetTitle>
+                  {/* Header personnalisé */}
                   <div className="flex items-center justify-between p-6 border-b bg-muted/50">
                     <h2 className="text-lg font-semibold">{__('common.menu')}</h2>
-                    <Button 
-                      variant="ghost" 
-                      size="icon"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      aria-label="Fermer le menu"
-                    >
-                      <X className="h-5 w-5" />
-                    </Button>
                   </div>
 
                   <div className="flex flex-col h-full">

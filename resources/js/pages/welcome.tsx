@@ -91,7 +91,7 @@ export default function Welcome({ featuredProducts = [], user, cartCount = 0, se
     ];
 
     // 🔔 NOUVELLES FONCTIONNALITÉS - Gestion avec Toasts Sonner
-    const handleAddToCart = async (productId: number) => {
+    const handleAddToCart = async (productId: number | string) => {
         try {
             // Simuler un appel API
             await new Promise(resolve => setTimeout(resolve, 500));
@@ -115,7 +115,7 @@ export default function Welcome({ featuredProducts = [], user, cartCount = 0, se
         }
     };
 
-    const handleToggleWishlist = async (productId: number) => {
+    const handleToggleWishlist = async (productId: number | string) => {
         try {
             await new Promise(resolve => setTimeout(resolve, 300));
             

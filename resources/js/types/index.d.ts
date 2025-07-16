@@ -41,3 +41,58 @@ export interface User {
     updated_at: string;
     [key: string]: unknown; // This allows for additional properties...
 }
+
+// Product interfaces unifiées
+export interface Product {
+    id: string;
+    uuid: string;
+    name: string;
+    slug?: string;
+    price: number;
+    originalPrice?: number;
+    featured_image?: string;
+    images?: string[];
+    rating?: number;
+    review_count?: number;
+    reviewCount?: number; // Compatibilité avec ProductCard existant
+    is_featured?: boolean;
+    badges?: string[];
+    badge?: string; // Compatibilité avec ProductCard existant
+    description?: string;
+    short_description?: string;
+    category_id?: string;
+    category?: Category;
+    stock_quantity?: number;
+    is_active?: boolean;
+    created_at?: string;
+    updated_at?: string;
+}
+
+export interface Category {
+    id: string;
+    name: string;
+    slug: string;
+    description?: string;
+    parent_id?: string;
+    image?: string;
+}
+
+export interface SearchSuggestion {
+    id: string;
+    type: 'product' | 'category' | 'recent' | 'trending';
+    title: string;
+    subtitle?: string;
+    url: string;
+    image?: string;
+    price?: string;
+}
+
+export interface PromotionalCard {
+    id: string;
+    title: string;
+    subtitle: string;
+    image?: string;
+    icon?: string;
+    url: string;
+    className: string;
+}
