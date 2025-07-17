@@ -115,6 +115,7 @@ export default function Welcome({ featuredProducts = [], user, cartCount = 0, se
         }
     };
 
+
     const handleToggleWishlist = async (productId: number | string) => {
         try {
             await new Promise(resolve => setTimeout(resolve, 300));

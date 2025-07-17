@@ -41,6 +41,15 @@ class HandleInertiaRequests extends Middleware
     {
         [$message, $author] = str(Inspiring::quotes()->random())->explode('-');
 
+        // Récupérer le compteur panier pour toutes les pages
+        $cartCount = 0;
+        try {
+            $cartService = app(\App\Services\CartService::class);
+            $cartCount = $cartService->getCartCount();
+        } catch (\Exception $e) {
+            // En cas d'erreur, garder 0
+        }
+
         return [
             ...parent::share($request),
             'name' => config('app.name'),
@@ -57,6 +66,7 @@ class HandleInertiaRequests extends Middleware
             'locale' => fn() => App::getLocale(),
             'available_locales' => available_locales(),
             'translations' => $this->getTranslations(),
+            'cartCount' => $cartCount,
         ];
     }
 

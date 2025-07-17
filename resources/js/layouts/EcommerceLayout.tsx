@@ -30,8 +30,6 @@ import {
 import {
   Sheet,
   SheetContent,
-  SheetDescription,
-  SheetHeader,
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet'
@@ -42,6 +40,7 @@ import { Breadcrumbs } from '@/components/breadcrumbs'
 import { Toaster } from '@/components/ui/sonner'
 import { SearchWithSuggestions, SearchModalLive } from '@/components/Search'
 import { SearchProvider } from '@/contexts/SearchContext'
+import { usePage } from '@inertiajs/react'
 
 interface EcommerceLayoutProps {
   children: React.ReactNode
@@ -67,13 +66,17 @@ export default function EcommerceLayout({
   children, 
   title, 
   user, 
-  cartCount = 0,
+  cartCount: propCartCount = 0,
   categories = [],
   breadcrumbs = []
 }: EcommerceLayoutProps) {
   const { __ } = useTranslation()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false)
+  
+  // Utiliser le cartCount des props Inertia shared
+  const { props } = usePage()
+  const cartCount = (props as any).cartCount || 0
 
   const handleSearch = (query: string) => {
     // Navigation vers la page de recherche unifiée (style Amazon)
@@ -94,7 +97,7 @@ export default function EcommerceLayout({
 
   return (
     <SearchProvider>
-    <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background">
       {/* Skip link for accessibility */}
       <a 
         href="#main-content" 
@@ -177,46 +180,25 @@ export default function EcommerceLayout({
               </Button>
 
               {/* Cart - Toujours visible */}
-              <Sheet>
-                <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="relative" aria-label={__('common.cart')}>
-                    <ShoppingCart className="h-5 w-5" />
-                    {cartCount > 0 && (
-                      <Badge 
-                        variant="destructive" 
-                        className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
-                      >
-                        {cartCount > 9 ? '9+' : cartCount}
-                      </Badge>
-                    )}
-                  </Button>
-                </SheetTrigger>
-                <SheetContent>
-                  <SheetHeader>
-                    <SheetTitle>{__('common.cart')} ({cartCount})</SheetTitle>
-                    <SheetDescription>
-                      {__('common.selected_items')}
-                    </SheetDescription>
-                  </SheetHeader>
-                  <div className="mt-6">
-                    {cartCount === 0 ? (
-                      <div className="text-center py-8 text-muted-foreground">
-                        <ShoppingCart className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                        <p>{__('common.cart_empty')}</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        {/* Cart items would go here */}
-                        <div className="border-t pt-4 mt-6">
-                          <Button className="w-full" size="lg">
-                            {__('common.view_cart')}
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </SheetContent>
-              </Sheet>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="relative" 
+                aria-label={__('common.cart')}
+                asChild
+              >
+                <Link href={route('cart.index')}>
+                  <ShoppingCart className="h-5 w-5" />
+                  {cartCount > 0 && (
+                    <Badge 
+                      variant="destructive" 
+                      className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
+                    >
+                      {cartCount > 9 ? '9+' : cartCount}
+                    </Badge>
+                  )}
+                </Link>
+              </Button>
 
               {/* User Menu - Desktop */}
               {user ? (
@@ -627,7 +609,7 @@ export default function EcommerceLayout({
 
       {/* Toast Container */}
       <Toaster />
-    </div>
+      </div>
     </SearchProvider>
   )
 }

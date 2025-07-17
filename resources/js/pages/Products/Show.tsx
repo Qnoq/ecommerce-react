@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Head } from '@inertiajs/react'
+import { Head, useForm } from '@inertiajs/react'
 import EcommerceLayout from '@/layouts/EcommerceLayout'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -20,6 +20,7 @@ import {
 import { cn } from '@/lib/utils'
 import { formatPricePrefix, hasDiscount, calculateDiscountPercent } from '@/utils/price'
 import type { Product } from '@/types/index.d.ts'
+import { useCart } from '@/contexts/CartContext'
 
 // Components
 import ProductImageGallery from '@/components/Product/ProductImageGallery'
@@ -51,22 +52,38 @@ export default function ProductShow({ product, relatedProducts }: ProductShowPro
   const [showSpecifications, setShowSpecifications] = useState(false)
   const [showShipping, setShowShipping] = useState(false)
 
+
+  // Cart context
+  const { cartCount, updateCartCount } = useCart()
+
+  // Form pour l'ajout au panier
+  const { data, setData, post, processing, errors } = useForm({
+    product_uuid: product.uuid,
+    quantity: 1,
+    variants: {}
+  })
+
   // Handlers
   const handleVariantChange = (type: string, value: string) => {
-    setSelectedVariants(prev => ({ ...prev, [type]: value }))
+    const newVariants = { ...selectedVariants, [type]: value }
+    setSelectedVariants(newVariants)
+    setData('variants', newVariants)
   }
 
   const handleQuantityChange = (delta: number) => {
-    setQuantity(prev => Math.max(1, prev + delta))
+    const newQuantity = Math.max(1, quantity + delta)
+    setQuantity(newQuantity)
+    setData('quantity', newQuantity)
   }
 
   const handleAddToCart = () => {
-    console.log('Ajout au panier:', {
-      product: product.uuid,
-      variants: selectedVariants,
-      quantity
+    post(route('cart.store'), {
+      onSuccess: () => {
+        // Incrémenter le compteur directement
+        updateCartCount(cartCount + quantity)
+        console.log('Produit ajouté au panier avec succès')
+      }
     })
-    // TODO: Implémenter l'ajout au panier
   }
 
   const handleWishlistToggle = () => {
@@ -240,10 +257,18 @@ export default function ProductShow({ product, relatedProducts }: ProductShowPro
                   size="lg" 
                   className="w-full h-12 text-base font-semibold"
                   onClick={handleAddToCart}
+                  disabled={processing}
                 >
                   <ShoppingBag className="mr-2 h-5 w-5" />
-                  Ajouter au panier
+                  {processing ? 'Ajout en cours...' : 'Ajouter au panier'}
                 </Button>
+                
+                {errors.stock && (
+                  <p className="text-sm text-red-600 mt-2">{errors.stock}</p>
+                )}
+                {errors.cart && (
+                  <p className="text-sm text-red-600 mt-2">{errors.cart}</p>
+                )}
               </div>
 
               {/* Service Info */}

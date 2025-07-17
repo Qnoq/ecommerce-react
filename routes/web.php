@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\CartController;
 
 // Changement de locale (en dehors du groupe middleware)
 Route::post('/locale', [LocaleController::class, 'change'])->name('locale.change');
@@ -35,6 +36,14 @@ Route::middleware(['set.locale'])->group(function () {
 
     // Analytics de recherche - SIMPLIFIÉES
     Route::get('/api/popular-searches', [ProductController::class, 'popularSearches'])->name('api.popular.searches');
+    
+    // Routes panier
+    Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
+    Route::post('/cart', [CartController::class, 'store'])->name('cart.store');
+    Route::patch('/cart/{productUuid}', [CartController::class, 'update'])->name('cart.update');
+    Route::delete('/cart/{productUuid}', [CartController::class, 'destroy'])->name('cart.destroy');
+    Route::delete('/cart', [CartController::class, 'clear'])->name('cart.clear');
+    Route::get('/api/cart/count', [CartController::class, 'count'])->name('cart.count');
     
     // Routes admin pour gestion cache (seulement si vraiment nécessaire)
     Route::middleware(['auth', 'admin'])->group(function () {

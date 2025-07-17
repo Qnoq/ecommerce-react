@@ -63,7 +63,7 @@ export default function ProductReviews({ reviews, averageRating, reviewsCount }:
                   <div className="flex items-center">
                     {[...Array(5)].map((_, i) => (
                       <Star 
-                        key={i}
+                        key={`rating-star-${i}`}
                         className={cn(
                           "h-5 w-5",
                           i < Math.floor(averageRating) 
@@ -142,7 +142,7 @@ export default function ProductReviews({ reviews, averageRating, reviewsCount }:
                           <div className="flex items-center">
                             {[...Array(5)].map((_, i) => (
                               <Star 
-                                key={i}
+                                key={`review-${review.id}-star-${i}`}
                                 className={cn(
                                   "h-4 w-4",
                                   i < review.rating 

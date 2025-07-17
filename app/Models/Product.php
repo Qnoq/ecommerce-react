@@ -218,7 +218,17 @@ class Product extends Model
             collect($this->attributes ?? [])->values()->implode(' '),
             // Noms des catégories
             $this->categories->pluck('name')->implode(' '),
-        ])->filter()->implode(' ');
+        ])
+        ->filter()
+        ->map(function($text) {
+            // Nettoyer et normaliser chaque partie
+            return trim(preg_replace('/\s+/', ' ', $text));
+        })
+        ->filter(function($text) {
+            return !empty($text);
+        })
+        ->unique() // Éviter les doublons
+        ->implode(' ');
 
         $this->search_content = $content;
     }
@@ -243,9 +253,13 @@ class Product extends Model
             // Appliquer les filtres de recherche textuelle
             if (!empty($query)) {
                 $queryBuilder->where(function ($q) use ($query) {
-                    $q->where('name', 'ILIKE', "%{$query}%")
-                      ->orWhere('description', 'ILIKE', "%{$query}%")
-                      ->orWhere('search_content', 'ILIKE', "%{$query}%");
+                    // Normaliser la requête (enlever les accents et mettre en minuscules)
+                    $normalizedQuery = strtolower($query);
+                    
+                    
+                    $q->whereRaw('unaccent(lower(name)) ILIKE unaccent(lower(?))', ["%{$normalizedQuery}%"])
+                      ->orWhereRaw('unaccent(lower(description)) ILIKE unaccent(lower(?))', ["%{$normalizedQuery}%"])
+                      ->orWhereRaw('unaccent(lower(search_content)) ILIKE unaccent(lower(?))', ["%{$normalizedQuery}%"]);
                 });
             }
             

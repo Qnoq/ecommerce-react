@@ -165,4 +165,13 @@
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
   }
+  
+  .scrollbar-hide {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* Internet Explorer 10+ */
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none; /* Safari and Chrome */
+  }
 }

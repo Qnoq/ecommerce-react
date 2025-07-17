@@ -67,8 +67,7 @@ export default function ProductRecommendations({ products, title }: ProductRecom
       <div className="relative">
         <div
           ref={scrollContainer}
-          className="flex gap-4 overflow-x-auto scrollbar-hide scroll-smooth pb-4"
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          className="flex gap-4 overflow-x-auto scroll-smooth pb-4 scrollbar-hide"
         >
           {products.map((product) => (
             <div key={product.uuid} className="flex-shrink-0 w-72">
@@ -90,11 +89,6 @@ export default function ProductRecommendations({ products, title }: ProductRecom
         )}
       </div>
 
-      <style jsx>{`
-        .scrollbar-hide::-webkit-scrollbar {
-          display: none;
-        }
-      `}</style>
     </section>
   )
 }

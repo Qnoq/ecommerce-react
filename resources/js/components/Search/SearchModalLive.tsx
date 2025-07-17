@@ -2,7 +2,7 @@ import React from 'react'
 import { Search, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Sheet, SheetContent, SheetHeader } from '@/components/ui/sheet'
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { useSearchContext } from '@/contexts/SearchContext'
 import { useSearchModal } from '@/hooks/useSearchModal'
 import { PROMOTIONAL_CARDS } from '@/data/promotionalCards'
@@ -47,7 +47,7 @@ export default function SearchModalLive({
       <SheetContent side="top" className="h-full w-full p-0 max-w-none">
         {/* Header avec barre de recherche */}
         <SheetHeader className="border-b bg-background p-4 space-y-4">
-          <h2 className="text-lg font-semibold">Recherche</h2>
+          <SheetTitle className="text-lg font-semibold">Recherche</SheetTitle>
 
           {/* Champ de recherche */}
           <div className="relative">

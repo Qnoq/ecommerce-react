@@ -4,6 +4,7 @@ import { createInertiaApp } from '@inertiajs/react'
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers'
 import { createRoot } from 'react-dom/client'
 import { ThemeProvider } from '@/hooks/use-theme'
+import { CartProvider } from '@/contexts/CartContext'
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel'
 
@@ -19,7 +20,9 @@ createInertiaApp({
 
     root.render(
       <ThemeProvider defaultTheme="system" storageKey="shoplux-theme">
-        <App {...props} />
+        <CartProvider>
+          <App {...props} />
+        </CartProvider>
       </ThemeProvider>
     )
   },

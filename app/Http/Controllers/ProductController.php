@@ -187,14 +187,15 @@ class ProductController extends Controller
         $cleanQuery = $this->cleanQuery($query);
         
         try {
-            // Construire la requête de base avec DISTINCT pour éviter les doublons
-            $baseQuery = Product::where('status', 'active')->distinct();
+            // Construire la requête de base
+            $baseQuery = Product::where('status', 'active');
             
-            // Recherche textuelle PostgreSQL
+            // Recherche textuelle PostgreSQL avec unaccent
             $baseQuery->where(function ($q) use ($cleanQuery) {
-                $q->whereRaw("to_tsvector('french', COALESCE(name, '') || ' ' || COALESCE(description, '')) @@ websearch_to_tsquery('french', ?)", [$cleanQuery])
-                  ->orWhere('name', 'ILIKE', "%{$cleanQuery}%")
-                  ->orWhere('description', 'ILIKE', "%{$cleanQuery}%");
+                $normalizedQuery = strtolower($cleanQuery);
+                $q->whereRaw('unaccent(lower(name)) ILIKE unaccent(lower(?))', ["%{$normalizedQuery}%"])
+                  ->orWhereRaw('unaccent(lower(description)) ILIKE unaccent(lower(?))', ["%{$normalizedQuery}%"])
+                  ->orWhereRaw('unaccent(lower(search_content)) ILIKE unaccent(lower(?))', ["%{$normalizedQuery}%"]);
             });
 
             // Appliquer les filtres
@@ -244,16 +245,20 @@ class ProductController extends Controller
     {
         $cleanQuery = $this->cleanQuery($query);
         
+        
         try {
-            // Suggestions de produits similaires (avec fallback si pg_trgm non installé)
+            // Suggestions de produits similaires - Prendre le produit avec le plus de ventes par nom
             $products = DB::select("
-                SELECT DISTINCT p.name, p.uuid, p.price, p.featured_image, p.sales_count
+                SELECT DISTINCT ON (p.name) p.name, p.uuid, p.price, p.featured_image, p.sales_count
                 FROM products p 
                 WHERE p.status = 'active'
-                AND p.name ILIKE ?
-                ORDER BY p.sales_count DESC, p.name ASC
+                AND (
+                    unaccent(lower(p.name)) ILIKE unaccent(lower(?))
+                    OR unaccent(lower(p.search_content)) ILIKE unaccent(lower(?))
+                )
+                ORDER BY p.name, p.sales_count DESC
                 LIMIT 5
-            ", ["%{$cleanQuery}%"]);
+            ", ["%{$cleanQuery}%", "%{$cleanQuery}%"]);
 
             $suggestions = [];
             foreach ($products as $product) {

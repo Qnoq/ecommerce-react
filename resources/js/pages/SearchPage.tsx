@@ -1,6 +1,6 @@
 // resources/js/pages/SearchPage.tsx
 import React, { useState, useEffect } from 'react';
-import { Head, router, Link } from '@inertiajs/react';
+import { Head, router, Link, useForm } from '@inertiajs/react';
 import EcommerceLayout from '@/layouts/EcommerceLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -291,12 +291,30 @@ export default function SearchPage({
     );
 }
 
-// Composant ProductCard réutilisable (si pas déjà défini ailleurs)
+// Composant ProductCard avec icône panier pour la recherche
 function ProductCard({ product }: { product: Product }) {
+    const { post, processing } = useForm({
+        product_uuid: product.uuid,
+        quantity: 1,
+        variants: {}
+    });
+
+    const handleAddToCart = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        post(route('cart.store'), {
+            preserveScroll: true,
+            onSuccess: () => {
+                console.log('Produit ajouté au panier avec succès');
+            }
+        });
+    };
+
     return (
         <Link 
             href={route('products.show', product.uuid)}
-            className="bg-card border border-border rounded-lg overflow-hidden hover:shadow-md transition-shadow group"
+            className="bg-card border border-border rounded-lg overflow-hidden hover:shadow-md transition-shadow group relative"
         >
             {/* Image */}
             <div className="relative aspect-square">
@@ -322,6 +340,20 @@ function ProductCard({ product }: { product: Product }) {
                         ))}
                     </div>
                 )}
+
+                {/* Bouton panier - visible sur mobile, hover sur desktop */}
+                <button
+                    onClick={handleAddToCart}
+                    disabled={processing}
+                    className="absolute bottom-2 right-2 bg-white/90 backdrop-blur-sm text-gray-700 p-2 rounded-full shadow-md hover:bg-white hover:shadow-lg transition-all md:opacity-0 md:group-hover:opacity-100"
+                    title="Ajouter au panier"
+                >
+                    {processing ? (
+                        <div className="animate-spin rounded-full h-3 w-3 border-2 border-gray-700 border-t-transparent" />
+                    ) : (
+                        <ShoppingBag className="h-3 w-3" />
+                    )}
+                </button>
             </div>
 
             {/* Contenu */}
@@ -361,3 +393,4 @@ function ProductCard({ product }: { product: Product }) {
         </Link>
     );
 }
+
