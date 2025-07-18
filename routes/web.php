@@ -41,6 +41,7 @@ Route::middleware(['set.locale'])->group(function () {
     Route::patch('/cart/{itemKey}', [CartController::class, 'update'])->name('cart.update');
     Route::delete('/cart/{itemKey}', [CartController::class, 'destroy'])->name('cart.destroy');
     Route::delete('/cart', [CartController::class, 'clear'])->name('cart.clear');
+    Route::delete('/cart/remove/last', [CartController::class, 'removeLast'])->name('cart.remove.last');
     Route::get('/api/cart/count', [CartController::class, 'count'])->name('cart.count');
     
     // Routes admin pour gestion cache (seulement si vraiment nécessaire)

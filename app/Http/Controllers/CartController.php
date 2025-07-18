@@ -121,6 +121,23 @@ class CartController extends Controller
     }
 
     /**
+     * Supprimer le dernier article ajouté au panier
+     */
+    public function removeLast()
+    {
+        try {
+            $cart = $this->cartService->removeLastItem();
+            
+            return back()->with([
+                'success' => 'Dernier article retiré du panier',
+                'cart' => $cart
+            ]);
+        } catch (\Exception $e) {
+            return back()->withErrors(['cart' => $e->getMessage()]);
+        }
+    }
+
+    /**
      * Obtenir le nombre d'articles dans le panier (pour le header)
      */
     public function count()

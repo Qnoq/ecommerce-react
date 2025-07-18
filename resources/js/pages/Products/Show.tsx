@@ -22,6 +22,7 @@ import { formatPricePrefix, hasDiscount, calculateDiscountPercent } from '@/util
 import type { Product } from '@/types/index.d.ts'
 import { useCart } from '@/contexts/CartContext'
 import { usePage } from '@inertiajs/react'
+import { toast } from 'sonner'
 
 // Components
 import ProductImageGallery from '@/components/Product/ProductImageGallery'
@@ -139,9 +140,31 @@ export default function ProductShow({ product, variants, availableAttributes, re
         // Remettre la quantité à 1 pour la prochaine sélection
         setQuantity(1)
         setIsAddingToCart(false)
+        
+        // Afficher le toast avec bouton annuler
+        toast.success(`${product.name} ajouté au panier`, {
+          description: `Quantité : ${quantity}`,
+          action: {
+            label: "Annuler",
+            onClick: () => {
+              // Supprimer du panier (appel API pour retirer l'item)
+              router.delete(route('cart.remove.last'), {
+                preserveScroll: true,
+                onSuccess: () => {
+                  updateCartCount(cartCount)
+                  toast.info("Article retiré du panier")
+                },
+                onError: () => {
+                  toast.error("Erreur lors de la suppression")
+                }
+              })
+            }
+          }
+        })
       },
       onError: (errors) => {
         setIsAddingToCart(false)
+        toast.error("Erreur lors de l'ajout au panier")
       },
       onFinish: () => {
         setIsAddingToCart(false)

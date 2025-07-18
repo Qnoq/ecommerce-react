@@ -194,6 +194,50 @@ class CartService
     }
 
     /**
+     * Supprimer le dernier article ajouté au panier
+     */
+    public function removeLastItem(?string $sessionId = null): array
+    {
+        $cartKey = $this->getCartKey($sessionId);
+        
+        // Récupérer tous les items avec leur timestamp
+        $cartData = $this->redis->hgetall($cartKey);
+        
+        if (empty($cartData)) {
+            throw new \Exception('Le panier est vide');
+        }
+        
+        $latestItemKey = null;
+        $latestTimestamp = null;
+        
+        // Parcourir tous les items pour trouver le plus récent
+        foreach ($cartData as $key => $value) {
+            // Ignorer seulement les métadonnées
+            if ($key === 'metadata') {
+                continue;
+            }
+            
+            $itemData = json_decode($value, true);
+            if (isset($itemData['added_at'])) {
+                $addedAt = $itemData['added_at'];
+                if ($latestTimestamp === null || $addedAt > $latestTimestamp) {
+                    $latestTimestamp = $addedAt;
+                    $latestItemKey = $key;
+                }
+            }
+        }
+        
+        if ($latestItemKey) {
+            $this->redis->hdel($cartKey, $latestItemKey);
+            $this->updateCartMetadata($cartKey);
+        } else {
+            throw new \Exception('Aucun article récent trouvé');
+        }
+
+        return $this->getCart($sessionId);
+    }
+
+    /**
      * Vider le panier
      */
     public function clearCart(?string $sessionId = null): array
