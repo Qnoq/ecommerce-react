@@ -1,15 +1,10 @@
-import React from 'react'
-import { Search, X, SlidersHorizontal } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import React, { useState, useCallback, useRef, useEffect } from 'react'
+import { Search, X, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { useSearchContext } from '@/contexts/SearchContext'
-import { useSearchModal } from '@/hooks/useSearchModal'
-import { PROMOTIONAL_CARDS } from '@/data/promotionalCards'
-import ProductCardCompact from '@/components/Product/ProductCardCompact'
-import type { Product, SearchSuggestion } from '@/types/index.d.ts'
-
-export type { SearchSuggestion } from '@/types/index.d.ts'
+import { router } from '@inertiajs/react'
+import type { Product } from '@/types/index.d.ts'
 
 interface SearchModalProps {
   isOpen: boolean
@@ -20,122 +15,132 @@ interface SearchModalProps {
 export default function SearchModal({
   isOpen,
   onClose,
-  placeholder = "Recherchez une couleur"
+  placeholder = "Recherchez des produits..."
 }: SearchModalProps) {
-  const { recentSearches } = useSearchContext()
-  const {
-    query,
-    isSearching,
-    inputRef,
-    handleInputChange,
-    handleKeyDown,
-    clearQuery,
-    navigateToSearchPage,
-    navigateToProduct,
-    navigateToSuggestion,
-    navigateToUrl,
-    showResults,
-    performSearch
-  } = useSearchModal({ isOpen, onClose })
+  const [query, setQuery] = useState('')
+  const [isSearching, setIsSearching] = useState(false)
+  const [products, setProducts] = useState<Product[]>([])
+  const inputRef = useRef<HTMLInputElement>(null)
+  const debounceRef = useRef<NodeJS.Timeout | null>(null)
+  
+  const { addRecentSearch, recentSearches } = useSearchContext()
 
-  // État pour les données de recherche
-  const [suggestions, setSuggestions] = React.useState<SearchSuggestion[]>([])
-  const [products, setProducts] = React.useState<Product[]>([])
-  const [totalResults, setTotalResults] = React.useState(0)
-
-  // Reset des données de recherche quand on ferme
-  React.useEffect(() => {
-    if (!isOpen) {
-      setSuggestions([])
-      setProducts([])
-      setTotalResults(0)
+  // Focus automatique à l'ouverture
+  useEffect(() => {
+    if (isOpen && inputRef.current) {
+      const timer = setTimeout(() => inputRef.current?.focus(), 150)
+      return () => clearTimeout(timer)
     }
   }, [isOpen])
 
-  // Fonction pour récupérer les suggestions et produits
-  const fetchSearchResults = React.useCallback(async (searchQuery: string) => {
-    if (searchQuery.length < 2) {
-      setSuggestions([])
+  // Reset à la fermeture
+  useEffect(() => {
+    if (!isOpen) {
+      setQuery('')
+      setIsSearching(false)
       setProducts([])
-      setTotalResults(0)
-      return
-    }
-
-    try {
-      // Suggestions rapides
-      const suggestionsResponse = await fetch(`/products/suggestions?q=${encodeURIComponent(searchQuery)}`, {
-        headers: {
-          'Accept': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest',
-        }
-      })
-      
-      if (suggestionsResponse.ok) {
-        const suggestionResult = await suggestionsResponse.json()
-        setSuggestions(suggestionResult.suggestions || [])
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current)
       }
+    }
+  }, [isOpen])
 
-      // Produits complets pour la liste via API dédiée
-      const productsResponse = await fetch(`/api/products/search?search=${encodeURIComponent(searchQuery)}&limit=20`, {
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        }
-      })
-      
-      if (productsResponse.ok) {
-        const productResult = await productsResponse.json()
+  // Fonction pour récupérer les produits
+  const fetchProducts = useCallback(async (searchValue: string) => {
+    if (searchValue.length >= 2) {
+      setIsSearching(true)
+      try {
+        console.log('Fetching products for:', searchValue)
+        const response = await fetch(`/search/live?search=${encodeURIComponent(searchValue)}&limit=20`, {
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          }
+        })
         
-        // Vérifier la structure des données
-        if (productResult.products && productResult.products.data) {
-          setProducts(productResult.products.data)
-          setTotalResults(productResult.products.total || 0)
+        console.log('Response status:', response.status)
+        
+        if (response.ok) {
+          const result = await response.json()
+          console.log('Response data:', result)
+          if (result.products) {
+            setProducts(result.products)
+            console.log('Products set:', result.products.length)
+          } else {
+            setProducts([])
+            console.log('No products in response')
+          }
         } else {
           setProducts([])
-          setTotalResults(0)
+          console.log('Response not ok')
         }
+      } catch (error) {
+        console.error('Erreur lors de la recherche:', error)
+        setProducts([])
+      } finally {
+        setIsSearching(false)
       }
-    } catch (error) {
-      setSuggestions([])
+    } else {
       setProducts([])
     }
   }, [])
 
-  // Debounce pour la recherche avec le hook personnalisé
-  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    handleInputChange(e)
-    
+  // Gestion du changement de query avec debounce
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
-    if (value.length >= 2) {
-      setTimeout(() => fetchSearchResults(value), 300)
+    setQuery(value)
+
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current)
     }
-  }
+    
+    debounceRef.current = setTimeout(() => {
+      fetchProducts(value)
+    }, 300)
+  }, [fetchProducts])
 
-  // Gestion du clic sur un produit
-  const handleProductClick = (uuid: string, name: string) => {
-    navigateToProduct({ uuid, name } as Product)
-  }
+  // Navigation vers un produit
+  const handleProductClick = useCallback((product: Product) => {
+    if (query.trim().length >= 2) {
+      addRecentSearch(query.trim())
+    }
+    
+    onClose()
+    
+    // Debug : vérifier les données du produit
+    console.log('Product clicked:', product)
+    console.log('Slug:', product.slug)
+    console.log('UUID:', product.uuid)
+    
+    const productUrl = route('products.show', { slug: product.slug || 'product', uuid: product.uuid })
+    console.log('Generated URL:', productUrl)
+    
+    router.visit(productUrl)
+  }, [addRecentSearch, onClose, query])
 
-  // Gestion de l'ajout au panier
-  const handleAddToCart = (product: Product) => {
-    // Logique d'ajout au panier à implémenter
-    console.log('Ajout au panier:', product.name)
-  }
+  // Effacer la recherche
+  const clearQuery = useCallback(() => {
+    setQuery('')
+    setProducts([])
+    if (inputRef.current) {
+      inputRef.current.focus()
+    }
+  }, [])
 
-  // Utilisation des cards promotionnelles externalisées
+  // Utiliser une recherche de l'historique
+  const handleHistorySearch = useCallback((searchTerm: string) => {
+    setQuery(searchTerm)
+    fetchProducts(searchTerm)
+  }, [fetchProducts])
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent side="top" className="h-full w-full p-0 max-w-none">
-        <SheetTitle className="sr-only">Recherche</SheetTitle>
         {/* Header fixe */}
         <SheetHeader className="border-b bg-background p-4 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Recherche</h2>
-            <Button variant="ghost" size="icon" onClick={onClose}>
-              <X className="h-5 w-5" />
-            </Button>
-          </div>
+          <SheetTitle className="flex items-center justify-between">
+            <span className="text-lg font-semibold">Recherche</span>
+          </SheetTitle>
 
           {/* Champ de recherche */}
           <div className="relative">
@@ -144,142 +149,106 @@ export default function SearchModal({
               ref={inputRef}
               type="text"
               value={query}
-              onChange={handleSearchInputChange}
-              onKeyDown={handleKeyDown}
+              onChange={handleInputChange}
               placeholder={placeholder}
-              className="w-full pl-10 pr-10 py-3 text-base border border-input rounded-lg bg-muted/50 focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+              className="w-full pl-10 pr-4 py-3 text-base border border-input rounded-lg bg-muted/50 focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
             />
-            {query && (
-              <button
-                type="button"
-                onClick={clearQuery}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
           </div>
 
-          {/* Barre de résultats si recherche active */}
-          {showResults && (
+          {/* Barre de résultats */}
+          {query.length >= 2 && (
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">
-                {isSearching ? 'Recherche...' : `${totalResults} articles`}
+                {isSearching ? 'Recherche...' : `${products.length} produit${products.length > 1 ? 's' : ''} trouvé${products.length > 1 ? 's' : ''}`}
               </span>
-              <Button variant="outline" size="sm">
-                <SlidersHorizontal className="h-4 w-4 mr-2" />
-                Trier & filtrer
-              </Button>
             </div>
           )}
         </SheetHeader>
 
         {/* Contenu scrollable */}
         <div className="flex-1 overflow-y-auto bg-background">
-          {!showResults ? (
-            /* État initial : Cards promotionnelles */
-            <div className="p-4 space-y-4">
-              {/* Recherches récentes si disponibles */}
-              {recentSearches.length > 0 && (
-                <div className="space-y-2">
-                  <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+          {query.length < 2 ? (
+            <div className="p-4">
+              {recentSearches.length > 0 ? (
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground mb-3 flex items-center">
+                    <Clock className="h-4 w-4 mr-2" />
                     Recherches récentes
                   </h3>
-                  <div className="flex flex-wrap gap-2">
-                    {recentSearches.slice(0, 3).map((search, index) => (
-                      <Button
+                  <div className="space-y-2">
+                    {recentSearches.map((search, index) => (
+                      <button
                         key={index}
-                        variant="outline"
-                        size="sm"
-                        onClick={() => performSearch(search)}
-                        className="text-sm"
+                        onClick={() => handleHistorySearch(search)}
+                        className="w-full text-left p-3 rounded-lg hover:bg-muted/50 transition-colors flex items-center"
                       >
-                        {search}
-                      </Button>
+                        <Clock className="h-4 w-4 mr-3 text-muted-foreground" />
+                        <span className="text-sm">{search}</span>
+                      </button>
                     ))}
                   </div>
                 </div>
+              ) : (
+                <div className="flex items-center justify-center py-16">
+                  <div className="text-center">
+                    <Search className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground text-lg">Tapez au moins 2 caractères pour rechercher</p>
+                  </div>
+                </div>
               )}
-
-              {/* Cards promotionnelles */}
-              <div className="space-y-4">
-                {PROMOTIONAL_CARDS.map((card) => (
+            </div>
+          ) : isSearching ? (
+            <div className="flex items-center justify-center py-16">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                <p className="text-muted-foreground">Recherche en cours...</p>
+              </div>
+            </div>
+          ) : products.length > 0 ? (
+            <div className="p-4">
+              <div className="grid grid-cols-1 gap-4">
+                {products.map((product) => (
                   <div
-                    key={card.id}
-                    onClick={() => navigateToUrl(card.url)}
-                    className={cn(
-                      "relative overflow-hidden rounded-lg p-6 cursor-pointer transition-transform hover:scale-[1.02]",
-                      card.className
-                    )}
+                    key={product.uuid}
+                    onClick={() => handleProductClick(product)}
+                    className="flex items-center space-x-4 p-4 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
                   >
-                    {card.image && (
-                      <img
-                        src={card.image}
-                        alt={card.title}
-                        className="absolute inset-0 w-full h-full object-cover"
-                      />
-                    )}
-                    <div className="relative z-10">
-                      {card.icon && (
-                        <div className="text-2xl mb-2">{card.icon}</div>
+                    {/* Image */}
+                    <div className="flex-shrink-0 w-16 h-16 bg-muted rounded-lg overflow-hidden">
+                      {product.featured_image ? (
+                        <img
+                          src={product.featured_image}
+                          alt={product.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                          <Search className="h-6 w-6" />
+                        </div>
                       )}
-                      <h3 className="text-xl font-bold mb-1">{card.title}</h3>
-                      <p className="text-sm opacity-90">{card.subtitle}</p>
+                    </div>
+
+                    {/* Informations */}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-medium text-sm truncate">{product.name}</h3>
+                      <p className="text-lg font-semibold text-primary mt-1">
+                        €{product.price}
+                      </p>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
           ) : (
-            /* État recherche : Suggestions + Produits */
-            <div className="space-y-4">
-              {/* Suggestions de recherche */}
-              {suggestions.length > 0 && (
-                <div className="px-4 py-2 border-b">
-                  <div className="flex flex-wrap gap-2">
-                    <span className="text-sm text-muted-foreground">Suggestions :</span>
-                    {suggestions.slice(0, 3).map((suggestion: SearchSuggestion) => (
-                      <Button
-                        key={suggestion.id}
-                        variant="outline"
-                        size="sm"
-                        onClick={() => navigateToSuggestion(suggestion)}
-                        className="text-sm"
-                      >
-                        {suggestion.title}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Grille de produits */}
-              {isSearching ? (
-                <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-                  <p className="text-muted-foreground">Recherche en cours...</p>
-                </div>
-              ) : products.length > 0 ? (
-                <div className="grid grid-cols-2 gap-4 p-4">
-                  {products.map((product) => (
-                    <ProductCardCompact
-                      key={product.uuid}
-                      product={product}
-                      onNavigate={handleProductClick}
-                      onAddToCart={handleAddToCart}
-                    />
-                  ))}
-                </div>
-              ) : query.length >= 2 ? (
-                <div className="text-center py-8">
-                  <Search className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-muted-foreground">Aucun produit trouvé pour "{query}"</p>
-                </div>
-              ) : null}
+            <div className="flex items-center justify-center py-16">
+              <div className="text-center">
+                <Search className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground text-lg">Aucun produit trouvé pour "{query}"</p>
+              </div>
             </div>
           )}
         </div>
       </SheetContent>
     </Sheet>
   )
-} 
+}

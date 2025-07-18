@@ -63,7 +63,7 @@ export function useSearchModal({ isOpen, onClose, enableLiveSearch = false }: Us
     if (searchValue.length >= 2) {
       setIsSearching(true)
       try {
-        const response = await fetch(`/products/suggestions?query=${encodeURIComponent(searchValue)}`)
+        const response = await fetch(`/products/suggestions?q=${encodeURIComponent(searchValue)}`)
         const data = await response.json()
         setSuggestions(data.suggestions || [])
       } catch (error) {
@@ -103,7 +103,7 @@ export function useSearchModal({ isOpen, onClose, enableLiveSearch = false }: Us
     }
     
     onClose()
-    const productUrl = product.slug ? `/products/${product.slug}` : `/products/${product.uuid}`
+    const productUrl = route('products.show', { slug: product.slug || 'product', uuid: product.uuid })
     router.visit(productUrl)
   }, [addRecentSearch, onClose, query])
 

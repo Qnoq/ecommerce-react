@@ -3,8 +3,15 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
+interface VariantOption {
+  value: string
+  display_name: string
+  color_code?: string
+  sort_order: number
+}
+
 interface ProductVariantSelectorProps {
-  attributes: Record<string, any>
+  attributes: Record<string, VariantOption[]>
   selectedVariants: Record<string, string>
   onVariantChange: (type: string, value: string) => void
 }
@@ -15,28 +22,30 @@ export default function ProductVariantSelector({
   onVariantChange 
 }: ProductVariantSelectorProps) {
   
-  // Types de variantes à afficher
-  const variantTypes = ['color', 'size', 'storage', 'memory']
-  
-  const renderVariantSelector = (type: string, values: string[] | string) => {
-    const valueArray = Array.isArray(values) ? values : [values]
-    
-    if (valueArray.length <= 1) return null
+  const renderVariantSelector = (attributeName: string, options: VariantOption[]) => {
+    if (options.length <= 1) return null
 
-    const getDisplayName = (type: string) => {
-      switch (type) {
-        case 'color': return 'Couleur'
-        case 'size': return 'Taille'
-        case 'storage': return 'Stockage'
-        case 'memory': return 'Mémoire'
-        default: return type.charAt(0).toUpperCase() + type.slice(1)
+    const getDisplayName = (attributeName: string) => {
+      const nameMap: Record<string, string> = {
+        'couleur': 'Couleur',
+        'taille': 'Taille', 
+        'pointure': 'Pointure',
+        'stockage': 'Stockage',
+        'processeur': 'Processeur',
+        'ram': 'Mémoire RAM',
+        'color': 'Couleur',
+        'size': 'Taille',
+        'storage': 'Stockage'
       }
+      
+      return nameMap[attributeName.toLowerCase()] || 
+             attributeName.charAt(0).toUpperCase() + attributeName.slice(1)
     }
 
-    const renderColorVariant = (value: string, isSelected: boolean) => (
+    const renderColorVariant = (option: VariantOption, isSelected: boolean) => (
       <button
-        key={value}
-        onClick={() => onVariantChange(type, value)}
+        key={option.value}
+        onClick={() => onVariantChange(attributeName, option.value)}
         className={cn(
           "w-8 h-8 rounded-full border-2 relative overflow-hidden transition-all",
           isSelected 
@@ -44,9 +53,9 @@ export default function ProductVariantSelector({
             : "border-muted-foreground/20 hover:border-muted-foreground/40"
         )}
         style={{
-          backgroundColor: getColorValue(value)
+          backgroundColor: option.color_code || getColorValue(option.value)
         }}
-        title={value}
+        title={option.display_name || option.value}
       >
         {isSelected && (
           <div className="absolute inset-0 flex items-center justify-center">
@@ -56,18 +65,18 @@ export default function ProductVariantSelector({
       </button>
     )
 
-    const renderStandardVariant = (value: string, isSelected: boolean) => (
+    const renderStandardVariant = (option: VariantOption, isSelected: boolean) => (
       <Button
-        key={value}
+        key={option.value}
         variant={isSelected ? "default" : "outline"}
         size="sm"
-        onClick={() => onVariantChange(type, value)}
+        onClick={() => onVariantChange(attributeName, option.value)}
         className={cn(
           "transition-all",
           isSelected && "ring-2 ring-primary/20"
         )}
       >
-        {value}
+        {option.display_name || option.value}
       </Button>
     )
 
@@ -125,29 +134,33 @@ export default function ProductVariantSelector({
       return colorMap[colorName.toLowerCase()] || '#6b7280'
     }
 
+    const isColorAttribute = attributeName.toLowerCase().includes('couleur') || 
+                             attributeName.toLowerCase().includes('color')
+
     return (
-      <div key={type} className="space-y-3">
+      <div key={attributeName} className="space-y-3">
         <div className="flex items-center justify-between">
           <label className="text-sm font-medium">
-            {getDisplayName(type)}:
+            {getDisplayName(attributeName)}:
           </label>
-          {selectedVariants[type] && (
+          {selectedVariants[attributeName] && (
             <Badge variant="secondary" className="text-xs">
-              {selectedVariants[type]}
+              {options.find(opt => opt.value === selectedVariants[attributeName])?.display_name || 
+               selectedVariants[attributeName]}
             </Badge>
           )}
         </div>
         
         <div className={cn(
           "flex flex-wrap gap-2",
-          type === 'color' ? "gap-3" : "gap-2"
+          isColorAttribute ? "gap-3" : "gap-2"
         )}>
-          {valueArray.map((value) => {
-            const isSelected = selectedVariants[type] === value
+          {options.map((option) => {
+            const isSelected = selectedVariants[attributeName] === option.value
             
-            return type === 'color' 
-              ? renderColorVariant(value, isSelected)
-              : renderStandardVariant(value, isSelected)
+            return isColorAttribute 
+              ? renderColorVariant(option, isSelected)
+              : renderStandardVariant(option, isSelected)
           })}
         </div>
       </div>
@@ -156,10 +169,9 @@ export default function ProductVariantSelector({
 
   return (
     <div className="space-y-6">
-      {variantTypes.map((type) => {
-        if (!attributes[type]) return null
-        return renderVariantSelector(type, attributes[type])
-      })}
+      {Object.entries(attributes).map(([attributeName, options]) => 
+        renderVariantSelector(attributeName, options)
+      )}
     </div>
   )
 }

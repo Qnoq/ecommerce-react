@@ -6,6 +6,7 @@ use App\Models\Product;
 use App\Models\User;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class CartService
@@ -56,23 +57,27 @@ class CartService
         $total = 0;
         $totalQuantity = 0;
 
-        foreach ($cartData as $productUuid => $itemData) {
-            if ($productUuid === 'metadata') continue;
+        foreach ($cartData as $itemKey => $itemData) {
+            if ($itemKey === 'metadata') continue;
             
             $item = json_decode($itemData, true);
+            
+            // Extraire l'UUID du produit de la clé (peut être "uuid" ou "uuid:variant:id")
+            $productUuid = explode(':', $itemKey)[0];
             
             // Récupérer le produit pour avoir les infos à jour
             $product = Product::where('uuid', $productUuid)->first();
             
             if ($product) {
                 $item['product'] = $product;
-                $item['subtotal'] = $item['quantity'] * $product->price;
+                $item['item_key'] = $itemKey; // Clé unique pour cet item (avec variante)
+                $item['subtotal'] = $item['quantity'] * $item['price']; // Utiliser le prix de la variante si disponible
                 $total += $item['subtotal'];
                 $totalQuantity += $item['quantity'];
                 $items[] = $item;
             } else {
                 // Produit supprimé, nettoyer l'item
-                $this->redis->hdel($cartKey, $productUuid);
+                $this->redis->hdel($cartKey, $itemKey);
             }
         }
 
@@ -87,7 +92,7 @@ class CartService
     /**
      * Ajouter un item au panier
      */
-    public function addItem(string $productUuid, int $quantity = 1, array $variants = [], ?string $sessionId = null): array
+    public function addItem(string $productUuid, int $quantity = 1, array $variants = [], ?string $sessionId = null, ?int $productVariantId = null): array
     {
         $product = Product::where('uuid', $productUuid)->first();
         
@@ -101,8 +106,20 @@ class CartService
 
         $cartKey = $this->getCartKey($sessionId);
         
-        // Vérifier si le produit existe déjà
-        $existingItem = $this->redis->hget($cartKey, $productUuid);
+        // Créer une clé unique pour la variante (ou produit de base)
+        $itemKey = $productVariantId ? "{$productUuid}:variant:{$productVariantId}" : $productUuid;
+        
+        // Vérifier si l'item existe déjà
+        $existingItem = $this->redis->hget($cartKey, $itemKey);
+        
+        // Récupérer le prix depuis la variante si disponible
+        $price = $product->price;
+        if ($productVariantId) {
+            $variant = DB::table('product_variants')->find($productVariantId);
+            if ($variant) {
+                $price = $variant->price;
+            }
+        }
         
         if ($existingItem) {
             $itemData = json_decode($existingItem, true);
@@ -111,16 +128,17 @@ class CartService
         } else {
             $itemData = [
                 'product_uuid' => $productUuid,
+                'product_variant_id' => $productVariantId,
                 'quantity' => $quantity,
                 'variants' => $variants,
-                'price' => $product->price,
+                'price' => $price,
                 'added_at' => now()->toISOString(),
                 'updated_at' => now()->toISOString()
             ];
         }
 
         // Sauvegarder dans Redis
-        $this->redis->hset($cartKey, $productUuid, json_encode($itemData));
+        $this->redis->hset($cartKey, $itemKey, json_encode($itemData));
         
         // Définir TTL pour les invités
         if (!Auth::check()) {
@@ -136,15 +154,15 @@ class CartService
     /**
      * Mettre à jour la quantité d'un item
      */
-    public function updateItem(string $productUuid, int $quantity, ?string $sessionId = null): array
+    public function updateItem(string $itemKey, int $quantity, ?string $sessionId = null): array
     {
         if ($quantity <= 0) {
-            return $this->removeItem($productUuid, $sessionId);
+            return $this->removeItem($itemKey, $sessionId);
         }
 
         $cartKey = $this->getCartKey($sessionId);
         
-        $existingItem = $this->redis->hget($cartKey, $productUuid);
+        $existingItem = $this->redis->hget($cartKey, $itemKey);
         
         if (!$existingItem) {
             throw new \Exception('Produit non trouvé dans le panier');
@@ -154,7 +172,7 @@ class CartService
         $itemData['quantity'] = $quantity;
         $itemData['updated_at'] = now()->toISOString();
 
-        $this->redis->hset($cartKey, $productUuid, json_encode($itemData));
+        $this->redis->hset($cartKey, $itemKey, json_encode($itemData));
         
         $this->updateCartMetadata($cartKey);
 
@@ -164,11 +182,11 @@ class CartService
     /**
      * Supprimer un item du panier
      */
-    public function removeItem(string $productUuid, ?string $sessionId = null): array
+    public function removeItem(string $itemKey, ?string $sessionId = null): array
     {
         $cartKey = $this->getCartKey($sessionId);
         
-        $this->redis->hdel($cartKey, $productUuid);
+        $this->redis->hdel($cartKey, $itemKey);
         
         $this->updateCartMetadata($cartKey);
 
@@ -274,7 +292,7 @@ class CartService
     /**
      * Valider le stock avant ajout
      */
-    public function validateStock(string $productUuid, int $quantity): bool
+    public function validateStock(string $productUuid, int $quantity, ?int $productVariantId = null): bool
     {
         $product = Product::where('uuid', $productUuid)->first();
         
@@ -282,6 +300,18 @@ class CartService
             return false;
         }
 
+        // Si on a une variante, vérifier le stock de la variante
+        if ($productVariantId) {
+            $variant = DB::table('product_variants')->find($productVariantId);
+            
+            if (!$variant) {
+                return false;
+            }
+
+            return $variant->stock_quantity >= $quantity;
+        }
+
+        // Sinon, vérifier le stock du produit de base
         if (!$product->manage_stock) {
             return true; // Stock non géré
         }

@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Head, useForm } from '@inertiajs/react'
+import { Head, useForm, router } from '@inertiajs/react'
 import EcommerceLayout from '@/layouts/EcommerceLayout'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -21,6 +21,7 @@ import { cn } from '@/lib/utils'
 import { formatPricePrefix, hasDiscount, calculateDiscountPercent } from '@/utils/price'
 import type { Product } from '@/types/index.d.ts'
 import { useCart } from '@/contexts/CartContext'
+import { usePage } from '@inertiajs/react'
 
 // Components
 import ProductImageGallery from '@/components/Product/ProductImageGallery'
@@ -36,14 +37,17 @@ interface ProductShowProps {
     averageRating?: number
     reviewsCount?: number
   }
+  variants: any[]
+  availableAttributes: Record<string, any[]>
   relatedProducts: Product[]
+  maxStock: number
 }
 
 interface SelectedVariants {
   [key: string]: string
 }
 
-export default function ProductShow({ product, relatedProducts }: ProductShowProps) {
+export default function ProductShow({ product, variants, availableAttributes, relatedProducts, maxStock }: ProductShowProps) {
   // States
   const [selectedVariants, setSelectedVariants] = useState<SelectedVariants>({})
   const [quantity, setQuantity] = useState(1)
@@ -51,16 +55,36 @@ export default function ProductShow({ product, relatedProducts }: ProductShowPro
   const [showDescription, setShowDescription] = useState(true)
   const [showSpecifications, setShowSpecifications] = useState(false)
   const [showShipping, setShowShipping] = useState(false)
+  const [isAddingToCart, setIsAddingToCart] = useState(false)
 
 
-  // Cart context
-  const { cartCount, updateCartCount } = useCart()
+  // Cart context et shared props
+  const { cartCount, updateCartCount, refreshCartCount } = useCart()
+  const { props } = usePage()
+
+  // Vérifier si toutes les variantes requises sont sélectionnées
+  const requiredAttributes = Object.keys(availableAttributes)
+  const allVariantsSelected = requiredAttributes.length === 0 || 
+    requiredAttributes.every(attr => selectedVariants[attr])
+
+  // Trouver la variante correspondante aux sélections
+  const selectedVariant = variants.find(variant => {
+    if (requiredAttributes.length === 0) return variant.is_default
+    
+    return variant.attributes.every(attr => 
+      selectedVariants[attr.attribute_name] === attr.attribute_value
+    )
+  })
+
+  // Calculer le stock disponible pour la variante sélectionnée
+  const availableStock = selectedVariant ? selectedVariant.stock_quantity : maxStock
 
   // Form pour l'ajout au panier
   const { data, setData, post, processing, errors } = useForm({
     product_uuid: product.uuid,
+    product_variant_id: null,
     quantity: 1,
-    variants: {}
+    variants: selectedVariants
   })
 
   // Handlers
@@ -71,17 +95,56 @@ export default function ProductShow({ product, relatedProducts }: ProductShowPro
   }
 
   const handleQuantityChange = (delta: number) => {
-    const newQuantity = Math.max(1, quantity + delta)
+    const newQuantity = Math.max(1, Math.min(availableStock, quantity + delta))
     setQuantity(newQuantity)
     setData('quantity', newQuantity)
   }
 
   const handleAddToCart = () => {
-    post(route('cart.store'), {
-      onSuccess: () => {
-        // Incrémenter le compteur directement
+    // Éviter les doubles clics
+    if (isAddingToCart) return
+    
+    // Vérifier que toutes les variantes sont sélectionnées
+    if (!allVariantsSelected) {
+      alert('Veuillez sélectionner toutes les options du produit avant de l\'ajouter au panier.')
+      return
+    }
+
+    // Recalculer la variante sélectionnée au moment de l'ajout
+    const currentSelectedVariant = variants.find(variant => {
+      if (requiredAttributes.length === 0) return variant.is_default
+      
+      return variant.attributes.every(attr => 
+        selectedVariants[attr.attribute_name] === attr.attribute_value
+      )
+    })
+
+
+    setIsAddingToCart(true)
+
+    const postData = {
+      product_uuid: product.uuid,
+      product_variant_id: currentSelectedVariant?.id || null,
+      quantity: quantity,
+      variants: selectedVariants
+    }
+    
+
+    // Utiliser router.post directement pour éviter les problèmes de sérialisation
+    router.post(route('cart.store'), postData, {
+      preserveScroll: true,
+      onSuccess: (page) => {
+        // Mettre à jour le compteur avec la quantité ajoutée
         updateCartCount(cartCount + quantity)
-        console.log('Produit ajouté au panier avec succès')
+        // Remettre la quantité à 1 pour la prochaine sélection
+        setQuantity(1)
+        setIsAddingToCart(false)
+      },
+      onError: (errors) => {
+        setIsAddingToCart(false)
+      },
+      onFinish: () => {
+        setIsAddingToCart(false)
       }
     })
   }
@@ -217,9 +280,9 @@ export default function ProductShow({ product, relatedProducts }: ProductShowPro
               </div>
 
               {/* Variants Selection */}
-              {product.attributes && (
+              {Object.keys(availableAttributes).length > 0 && (
                 <ProductVariantSelector
-                  attributes={product.attributes}
+                  attributes={availableAttributes}
                   selectedVariants={selectedVariants}
                   onVariantChange={handleVariantChange}
                 />
@@ -247,20 +310,44 @@ export default function ProductShow({ product, relatedProducts }: ProductShowPro
                       size="icon"
                       className="h-10 w-10 rounded-none border-l"
                       onClick={() => handleQuantityChange(1)}
+                      disabled={quantity >= availableStock}
                     >
                       <Plus className="h-4 w-4" />
                     </Button>
+                  </div>
+                  
+                  {/* Stock Info */}
+                  <div className="text-sm text-muted-foreground">
+                    {availableStock > 0 ? (
+                      availableStock <= 5 ? (
+                        <span className="text-orange-600">
+                          Plus que {availableStock} en stock
+                        </span>
+                      ) : (
+                        <span className="text-green-600">
+                          En stock ({availableStock} disponibles)
+                        </span>
+                      )
+                    ) : (
+                      <span className="text-red-600">
+                        Rupture de stock
+                      </span>
+                    )}
                   </div>
                 </div>
 
                 <Button 
                   size="lg" 
-                  className="w-full h-12 text-base font-semibold"
+                  className={`w-full h-12 text-base font-semibold ${
+                    !allVariantsSelected ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
                   onClick={handleAddToCart}
-                  disabled={processing}
+                  disabled={!allVariantsSelected || isAddingToCart || availableStock === 0}
                 >
                   <ShoppingBag className="mr-2 h-5 w-5" />
-                  {processing ? 'Ajout en cours...' : 'Ajouter au panier'}
+                  {isAddingToCart ? 'Ajout en cours...' : 
+                   availableStock === 0 ? 'Rupture de stock' :
+                   !allVariantsSelected ? 'Sélectionnez les options' : 'Ajouter au panier'}
                 </Button>
                 
                 {errors.stock && (

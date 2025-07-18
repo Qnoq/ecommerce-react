@@ -36,15 +36,17 @@ class CartController extends Controller
     {
         $request->validate([
             'product_uuid' => 'required|string|exists:products,uuid',
+            'product_variant_id' => 'nullable|integer|exists:product_variants,id',
             'quantity' => 'integer|min:1|max:99',
             'variants' => 'array'
         ]);
 
         $quantity = $request->input('quantity', 1);
         $variants = $request->input('variants', []);
+        $productVariantId = $request->input('product_variant_id');
 
         // Valider le stock
-        if (!$this->cartService->validateStock($request->product_uuid, $quantity)) {
+        if (!$this->cartService->validateStock($request->product_uuid, $quantity, $productVariantId)) {
             return back()->withErrors(['stock' => 'Stock insuffisant pour ce produit']);
         }
 
@@ -52,10 +54,11 @@ class CartController extends Controller
             $cart = $this->cartService->addItem(
                 $request->product_uuid,
                 $quantity,
-                $variants
+                $variants,
+                null, // sessionId
+                $productVariantId
             );
 
-            // Retourner les données Inertia avec le nouveau compteur
             return redirect()->back()->with('success', 'Produit ajouté au panier');
         } catch (\Exception $e) {
             return back()->withErrors(['cart' => $e->getMessage()]);
@@ -65,7 +68,7 @@ class CartController extends Controller
     /**
      * Mettre à jour la quantité d'un produit
      */
-    public function update(Request $request, string $productUuid)
+    public function update(Request $request, string $itemKey)
     {
         $request->validate([
             'quantity' => 'required|integer|min:0|max:99'
@@ -73,7 +76,7 @@ class CartController extends Controller
 
         try {
             $cart = $this->cartService->updateItem(
-                $productUuid,
+                $itemKey,
                 $request->quantity
             );
 
@@ -89,10 +92,10 @@ class CartController extends Controller
     /**
      * Supprimer un produit du panier
      */
-    public function destroy(string $productUuid)
+    public function destroy(string $itemKey)
     {
         try {
-            $cart = $this->cartService->removeItem($productUuid);
+            $cart = $this->cartService->removeItem($itemKey);
             
             return back()->with([
                 'success' => 'Produit retiré du panier',

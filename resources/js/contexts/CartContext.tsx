@@ -42,7 +42,7 @@ export function CartProvider({ children, initialCount = 0 }: CartProviderProps) 
         setCartCount(data.count)
       }
     } catch (error) {
-      console.error('Error fetching cart count:', error)
+      // Error fetching cart count
     }
   }
 

@@ -56,10 +56,22 @@ class ProductController extends Controller
     }
 
     /**
-     * Affichage d'un produit
+     * Affichage d'un produit avec slug et UUID
      */
-    public function show(Product $product)
+    public function show(string $slug, string $uuid)
     {
+        // Récupérer le produit par UUID
+        $product = Product::where('uuid', $uuid)->firstOrFail();
+        
+        // Vérifier que le slug correspond (optionnel mais recommandé pour SEO)
+        if ($product->slug !== $slug) {
+            // Rediriger vers la bonne URL si le slug est incorrect
+            return redirect()->route('products.show', [
+                'slug' => $product->slug,
+                'uuid' => $product->uuid
+            ], 301);
+        }
+        
         $product->load([
             'categories',
             'reviews' => function ($query) {
@@ -69,6 +81,66 @@ class ProductController extends Controller
             },
             'reviews.user'
         ]);
+
+        // Charger les variantes avec leurs attributs
+        $variants = DB::table('product_variants as pv')
+            ->select([
+                'pv.id',
+                'pv.uuid',
+                'pv.sku',
+                'pv.name',
+                'pv.price',
+                'pv.original_price',
+                'pv.stock_quantity',
+                'pv.in_stock',
+                'pv.featured_image',
+                'pv.images',
+                'pv.is_default',
+                'pv.sort_order'
+            ])
+            ->where('pv.product_id', $product->id)
+            ->where('pv.status', 'active')
+            ->orderBy('pv.is_default', 'desc')
+            ->orderBy('pv.sort_order')
+            ->get()
+            ->map(function ($variant) {
+                // Charger les attributs de chaque variante
+                $attributes = DB::table('product_variant_attributes')
+                    ->where('product_variant_id', $variant->id)
+                    ->orderBy('sort_order')
+                    ->get();
+                
+                $variant->attributes = $attributes;
+                $variant->images = $variant->images ? json_decode($variant->images, true) : [];
+                
+                return $variant;
+            });
+
+        // Organiser les attributs disponibles pour les sélecteurs
+        $availableAttributes = [];
+        foreach ($variants as $variant) {
+            foreach ($variant->attributes as $attr) {
+                if (!isset($availableAttributes[$attr->attribute_name])) {
+                    $availableAttributes[$attr->attribute_name] = [];
+                }
+                
+                $availableAttributes[$attr->attribute_name][] = [
+                    'value' => $attr->attribute_value,
+                    'display_name' => $attr->display_name ?: $attr->attribute_value,
+                    'color_code' => $attr->color_code,
+                    'sort_order' => $attr->sort_order
+                ];
+            }
+        }
+
+        // Dédupliquer et trier les attributs
+        foreach ($availableAttributes as $attrName => $values) {
+            $availableAttributes[$attrName] = collect($values)
+                ->unique('value')
+                ->sortBy('sort_order')
+                ->values()
+                ->toArray();
+        }
 
         // Produits similaires
         $relatedProducts = Product::with(['categories'])
@@ -81,10 +153,36 @@ class ProductController extends Controller
             ->take(4)
             ->get();
 
+
         return Inertia::render('Products/Show', [
             'product' => $product,
-            'relatedProducts' => $relatedProducts
+            'variants' => $variants,
+            'availableAttributes' => $availableAttributes,
+            'relatedProducts' => $relatedProducts,
+            'maxStock' => $this->getMaxAvailableStock($product, $variants)
         ]);
+    }
+
+    /**
+     * Méthode de fallback pour les anciens liens avec /products/
+     */
+    public function showByUuid(string $slugOrUuid, string $uuid = null)
+    {
+        // Si on a deux paramètres, c'est un ancien lien /products/{slug}/{uuid}
+        if ($uuid) {
+            $product = Product::where('uuid', $uuid)->firstOrFail();
+            return redirect()->route('products.show', [
+                'slug' => $product->slug,
+                'uuid' => $product->uuid
+            ], 301);
+        }
+        
+        // Sinon, c'est un ancien lien /products/{uuid}
+        $product = Product::where('uuid', $slugOrUuid)->firstOrFail();
+        return redirect()->route('products.show', [
+            'slug' => $product->slug,
+            'uuid' => $product->uuid
+        ], 301);
     }
 
 
@@ -95,7 +193,10 @@ class ProductController extends Controller
     {
         $query = $request->get('query', $request->get('q', ''));
         
+        Log::info("Suggestions called", ['query' => $query, 'request_params' => $request->all()]);
+        
         if (strlen($query) < 2) {
+            Log::info("Suggestions: Query too short", ['query' => $query]);
             return response()->json(['suggestions' => []]);
         }
 
@@ -103,6 +204,8 @@ class ProductController extends Controller
         $suggestions = Cache::remember($cacheKey, 300, function () use ($query) {
             return $this->generateSuggestions($query);
         });
+
+        Log::info("Suggestions results", ['query' => $query, 'suggestions_count' => count($suggestions)]);
 
         return response()->json(['suggestions' => $suggestions]);
     }
@@ -144,14 +247,17 @@ class ProductController extends Controller
     }
 
     /**
-     * API de recherche pour la modal (retourne JSON)
+     * Recherche live pour la modal (retourne JSON pour Inertia)
      */
-    public function searchApi(Request $request)
+    public function searchLive(Request $request)
     {
-        $query = $request->input('k', '');
+        $query = $request->input('search', $request->input('q', ''));
         $limit = $request->input('limit', 10);
         
+        Log::info("SearchLive called", ['query' => $query, 'limit' => $limit, 'request_params' => $request->all()]);
+        
         if (empty($query) || strlen(trim($query)) < 2) {
+            Log::info("SearchLive: Query too short", ['query' => $query]);
             return response()->json([
                 'products' => [],
                 'totalResults' => 0,
@@ -160,17 +266,19 @@ class ProductController extends Controller
         }
 
         // Recherche avec cache
-        $cacheKey = 'search_api:' . md5(strtolower($query) . $limit);
+        $cacheKey = 'search_live:' . md5(strtolower($query) . $limit);
         $results = Cache::remember($cacheKey, 300, function () use ($query, $limit) {
             return $this->performSearch($query, $limit);
         });
+
+        Log::info("SearchLive results", ['query' => $query, 'products_count' => count($results['products']['data']), 'total' => $results['products']['total']]);
 
         // Analytics
         $this->trackSearchAnalytics($query);
 
         return response()->json([
-            'products' => $results['products'],
-            'totalResults' => $results['totalResults'],
+            'products' => $results['products']['data'],
+            'totalResults' => $results['products']['total'],
             'query' => $query
         ]);
     }
@@ -186,16 +294,48 @@ class ProductController extends Controller
     {
         $cleanQuery = $this->cleanQuery($query);
         
+        Log::info("PerformSearch called", ['query' => $query, 'cleanQuery' => $cleanQuery, 'limit' => $limit]);
+        
         try {
             // Construire la requête de base
             $baseQuery = Product::where('status', 'active');
             
-            // Recherche textuelle PostgreSQL avec unaccent
+            // Recherche textuelle PostgreSQL avec unaccent - approche simple
             $baseQuery->where(function ($q) use ($cleanQuery) {
                 $normalizedQuery = strtolower($cleanQuery);
-                $q->whereRaw('unaccent(lower(name)) ILIKE unaccent(lower(?))', ["%{$normalizedQuery}%"])
-                  ->orWhereRaw('unaccent(lower(description)) ILIKE unaccent(lower(?))', ["%{$normalizedQuery}%"])
-                  ->orWhereRaw('unaccent(lower(search_content)) ILIKE unaccent(lower(?))', ["%{$normalizedQuery}%"]);
+                
+                // Créer toutes les variations possibles de la recherche
+                $searchVariations = [
+                    $normalizedQuery,                                    // "t shirt"
+                    str_replace(' ', '-', $normalizedQuery),            // "t-shirt"  
+                    str_replace(' ', '', $normalizedQuery),             // "tshirt"
+                    str_replace('-', ' ', $normalizedQuery),            // "t shirt" (si "t-shirt" entré)
+                    str_replace('-', '', $normalizedQuery),             // "tshirt" (si "t-shirt" entré)
+                ];
+                
+                // Recherche dans toutes les variations
+                foreach (array_unique($searchVariations) as $variation) {
+                    $q->orWhereRaw('unaccent(lower(name)) ILIKE unaccent(lower(?))', ["%{$variation}%"])
+                      ->orWhereRaw('unaccent(lower(description)) ILIKE unaccent(lower(?))', ["%{$variation}%"])
+                      ->orWhereRaw('unaccent(lower(search_content)) ILIKE unaccent(lower(?))', ["%{$variation}%"]);
+                }
+                
+                // Recherche par mots individuels pour "t shirt" -> trouver des produits contenant "t" ET "shirt"
+                $words = preg_split('/[\s\-]+/', $normalizedQuery);
+                if (count($words) > 1) {
+                    $q->orWhere(function ($subQ) use ($words) {
+                        foreach ($words as $word) {
+                            $word = trim($word);
+                            if (strlen($word) > 0) {
+                                $subQ->where(function ($wordQ) use ($word) {
+                                    $wordQ->whereRaw('unaccent(lower(name)) ILIKE unaccent(lower(?))', ["%{$word}%"])
+                                          ->orWhereRaw('unaccent(lower(description)) ILIKE unaccent(lower(?))', ["%{$word}%"])
+                                          ->orWhereRaw('unaccent(lower(search_content)) ILIKE unaccent(lower(?))', ["%{$word}%"]);
+                                });
+                            }
+                        }
+                    });
+                }
             });
 
             // Appliquer les filtres
@@ -221,6 +361,8 @@ class ProductController extends Controller
                 $pagination = [];
             }
 
+            Log::info("PerformSearch results", ['query' => $query, 'products_found' => $total, 'formatted_count' => count($formattedProducts)]);
+
             // Suggestions si peu de résultats
             $suggestions = $total < 3 ? $this->generateSuggestions($cleanQuery) : [];
 
@@ -230,7 +372,7 @@ class ProductController extends Controller
             ], $pagination);
 
         } catch (\Exception $e) {
-            Log::error('Erreur recherche: ' . $e->getMessage());
+            Log::error('Erreur recherche: ' . $e->getMessage(), ['query' => $query, 'exception' => $e->getTraceAsString()]);
             return [
                 'products' => ['data' => [], 'total' => 0],
                 'suggestions' => []
@@ -247,9 +389,9 @@ class ProductController extends Controller
         
         
         try {
-            // Suggestions de produits similaires - Prendre le produit avec le plus de ventes par nom
+            // Suggestions de produits similaires - Éviter les doublons par nom
             $products = DB::select("
-                SELECT DISTINCT ON (p.name) p.name, p.uuid, p.price, p.featured_image, p.sales_count
+                SELECT DISTINCT ON (p.name) p.name, p.uuid, p.slug, p.price, p.featured_image, p.sales_count
                 FROM products p 
                 WHERE p.status = 'active'
                 AND (
@@ -267,7 +409,7 @@ class ProductController extends Controller
                     'type' => 'product',
                     'title' => $product->name,
                     'subtitle' => '€' . number_format($product->price, 2),
-                    'url' => route('products.show', $product->uuid),
+                    'url' => route('products.show', ['slug' => $product->slug, 'uuid' => $product->uuid]),
                     'image' => $product->featured_image
                 ];
             }
@@ -384,16 +526,29 @@ class ProductController extends Controller
             if ($product->sales_count > 100) $badges[] = 'Best seller';
             if ($product->created_at > now()->subDays(30)) $badges[] = 'Nouveauté';
 
+            // Vérifier si le produit a des variantes (plus d'une variante = choix requis)
+            $variantsCount = DB::table('product_variants')
+                ->where('product_id', $product->id)
+                ->where('status', 'active')
+                ->count();
+            
+            // Calculer le stock minimum disponible
+            $minStock = $this->getMinAvailableStock($product);
+            
+
             return [
                 'id' => $product->id,
                 'uuid' => $product->uuid,
                 'name' => $product->name,
+                'slug' => $product->slug,
                 'price' => (float) $product->price,
                 'featured_image' => $image,
                 'rating' => $product->rating ? (float) $product->rating : null,
                 'review_count' => (int) $product->review_count,
                 'is_featured' => (bool) $product->is_featured,
-                'badges' => $badges
+                'badges' => $badges,
+                'has_variants' => $variantsCount > 1,
+                'min_stock' => $minStock
             ];
         })->toArray();
     }
@@ -461,6 +616,39 @@ class ProductController extends Controller
             'currentFilters' => [],
             'filters' => $this->getAvailableFilters()
         ]);
+    }
+
+    /**
+     * Obtenir le stock maximum disponible pour un produit
+     */
+    private function getMaxAvailableStock($product, $variants)
+    {
+        if ($variants->count() > 1) {
+            // Si plusieurs variantes, retourner le stock max parmi les variantes
+            return $variants->max('stock_quantity');
+        } else {
+            // Si une seule variante ou pas de variantes, utiliser le stock du produit ou de la variante
+            return $variants->count() > 0 ? $variants->first()->stock_quantity : $product->stock_quantity;
+        }
+    }
+
+    /**
+     * Obtenir le stock minimum disponible pour un produit (pour la recherche)
+     */
+    private function getMinAvailableStock($product)
+    {
+        $variants = DB::table('product_variants')
+            ->where('product_id', $product->id)
+            ->where('status', 'active')
+            ->get();
+            
+        if ($variants->count() > 0) {
+            // Si des variantes existent, retourner le stock minimum parmi les variantes
+            return $variants->min('stock_quantity');
+        } else {
+            // Sinon, utiliser le stock du produit de base
+            return $product->stock_quantity;
+        }
     }
 
     /**

@@ -1,15 +1,13 @@
 // resources/js/pages/SearchPage.tsx
-import React, { useState, useEffect } from 'react';
-import { Head, router, Link, useForm } from '@inertiajs/react';
+import { useState, useEffect } from 'react';
+import { Head, router, Link } from '@inertiajs/react';
 import EcommerceLayout from '@/layouts/EcommerceLayout';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Search, Filter, Star, ShoppingBag, ArrowLeft, ArrowRight } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { formatPrice } from '@/utils/price';
+import { Search, Filter, ArrowLeft, ArrowRight } from 'lucide-react';
+import ProductCard from '@/components/Product/ProductCard';
 
 // Import des types depuis le fichier centralisé
-import type { Product, SearchResults, SearchFilters } from '@/types/search';
+import type { SearchResults, SearchFilters } from '@/types/search';
 
 interface SearchPageProps {
     searchQuery: string;
@@ -177,7 +175,7 @@ export default function SearchPage({
                                     {products.map((product) => (
                                         <ProductCard 
                                             key={product.uuid} 
-                                            product={product} 
+                                            product={product}
                                         />
                                     ))}
                                 </div>
@@ -288,109 +286,6 @@ export default function SearchPage({
                 )}
             </div>
         </EcommerceLayout>
-    );
-}
-
-// Composant ProductCard avec icône panier pour la recherche
-function ProductCard({ product }: { product: Product }) {
-    const { post, processing } = useForm({
-        product_uuid: product.uuid,
-        quantity: 1,
-        variants: {}
-    });
-
-    const handleAddToCart = (e: React.MouseEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        post(route('cart.store'), {
-            preserveScroll: true,
-            onSuccess: () => {
-                console.log('Produit ajouté au panier avec succès');
-            }
-        });
-    };
-
-    return (
-        <Link 
-            href={route('products.show', product.uuid)}
-            className="bg-card border border-border rounded-lg overflow-hidden hover:shadow-md transition-shadow group relative"
-        >
-            {/* Image */}
-            <div className="relative aspect-square">
-                {product.featured_image ? (
-                    <img
-                        src={product.featured_image}
-                        alt={product.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                ) : (
-                    <div className="w-full h-full bg-muted flex items-center justify-center">
-                        <ShoppingBag className="h-12 w-12 text-muted-foreground" />
-                    </div>
-                )}
-                
-                {/* Badges */}
-                {product.badges && product.badges.length > 0 && (
-                    <div className="absolute top-2 left-2 space-y-1">
-                        {product.badges.slice(0, 2).map((badge, index) => (
-                            <Badge key={index} variant="secondary" className="text-xs">
-                                {badge}
-                            </Badge>
-                        ))}
-                    </div>
-                )}
-
-                {/* Bouton panier - visible sur mobile, hover sur desktop */}
-                <button
-                    onClick={handleAddToCart}
-                    disabled={processing}
-                    className="absolute bottom-2 right-2 bg-white/90 backdrop-blur-sm text-gray-700 p-2 rounded-full shadow-md hover:bg-white hover:shadow-lg transition-all md:opacity-0 md:group-hover:opacity-100"
-                    title="Ajouter au panier"
-                >
-                    {processing ? (
-                        <div className="animate-spin rounded-full h-3 w-3 border-2 border-gray-700 border-t-transparent" />
-                    ) : (
-                        <ShoppingBag className="h-3 w-3" />
-                    )}
-                </button>
-            </div>
-
-            {/* Contenu */}
-            <div className="p-4 space-y-3">
-                {/* Rating */}
-                {product.rating && (
-                    <div className="flex items-center gap-1">
-                        <div className="flex">
-                            {[...Array(5)].map((_, i) => (
-                                <Star
-                                    key={i}
-                                    className={cn(
-                                        "h-3 w-3",
-                                        i < Math.floor(product.rating!) 
-                                            ? "fill-yellow-400 text-yellow-400" 
-                                            : "text-gray-300"
-                                    )}
-                                />
-                            ))}
-                        </div>
-                        <span className="text-xs text-muted-foreground">
-                            ({product.review_count || 0})
-                        </span>
-                    </div>
-                )}
-
-                {/* Nom */}
-                <h3 className="font-medium text-sm line-clamp-2 group-hover:text-primary transition-colors">
-                    {product.name}
-                </h3>
-
-                {/* Prix */}
-                <div className="font-bold text-lg text-primary">
-                    {formatPrice(product.price)}
-                </div>
-            </div>
-        </Link>
     );
 }
 

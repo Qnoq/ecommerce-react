@@ -1,198 +1,135 @@
-import { Link } from '@inertiajs/react';
-import { Heart, ShoppingCart, Eye } from 'lucide-react';
-import { useState } from 'react';
-import { formatPrice, hasDiscount } from '@/utils/price';
-import type { Product } from '@/types/index.d.ts';
-
-// Interface pour la compatibilité avec l'ancienne version
-interface LegacyProduct {
-    id: number;
-    name: string;
-    price: number;
-    originalPrice?: number;
-    image: string;
-    badge?: string;
-    rating?: number;
-    reviewCount?: number;
-    slug?: string;
-}
+import { Link, useForm } from '@inertiajs/react';
+import { ShoppingBag, Eye, Star } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { formatPrice } from '@/utils/price';
+import { cn } from '@/lib/utils';
 
 interface Props {
-    product: Product | LegacyProduct;
+    product: any;
     onAddToCart?: (productId: number | string) => void;
-    onToggleWishlist?: (productId: number | string) => void;
-    isInWishlist?: boolean;
 }
 
-export default function ProductCard({ 
-    product, 
-    onAddToCart, 
-    onToggleWishlist, 
-    isInWishlist = false 
-}: Props) {
-    const [isLoading, setIsLoading] = useState(false);
-    const [imageError, setImageError] = useState(false);
+export default function ProductCard({ product, onAddToCart }: Props) {
+    const { post, processing } = useForm({
+        product_uuid: product.uuid,
+        quantity: 1,
+        variants: {}
+    });
 
-    const handleAddToCart = async () => {
-        if (!onAddToCart) return;
+    const handleAddToCart = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
         
-        setIsLoading(true);
-        try {
-            await onAddToCart(product.id);
-        } catch (error) {
-            console.error('Erreur lors de l\'ajout au panier:', error);
-        } finally {
-            setIsLoading(false);
+        if (onAddToCart) {
+            onAddToCart(product.id);
+            return;
         }
-    };
-
-    const handleToggleWishlist = () => {
-        if (onToggleWishlist) {
-            onToggleWishlist(product.id);
+        
+        // Si le produit a des variantes, aller à la page produit
+        if (product.has_variants) {
+            window.location.href = route('products.show', { slug: product.slug || 'product', uuid: product.uuid });
+            return;
         }
+        
+        // Sinon, ajout direct au panier
+        post(route('cart.store'), {
+            preserveScroll: true,
+            onSuccess: () => {
+                // Produit ajouté avec succès
+            }
+        });
     };
-
-    const discountPercentage = product.originalPrice 
-        ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
-        : 0;
-
-    const productUrl = product.slug ? `/products/${product.slug}` : `/products/${product.id || (product as Product).uuid}`;
 
     return (
-        <div className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 group relative overflow-hidden">
-            {/* Badge */}
-            {product.badge && (
-                <span className={`absolute top-3 left-3 px-2 py-1 text-xs font-semibold rounded-full z-10 ${
-                    product.badge === 'Promo' || product.badge === 'Solde' ? 'bg-red-100 text-red-600' :
-                    product.badge === 'Nouveau' ? 'bg-green-100 text-green-600' :
-                    product.badge === 'Populaire' ? 'bg-blue-100 text-blue-600' :
-                    'bg-gray-100 text-gray-600'
-                }`}>
-                    {product.badge}
-                </span>
-            )}
-
-            {/* Discount Badge */}
-            {discountPercentage > 0 && (
-                <span className="absolute top-3 right-3 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full z-10">
-                    -{discountPercentage}%
-                </span>
-            )}
-
-            {/* Image Container */}
-            <div className="relative overflow-hidden rounded-t-xl">
-                <Link href={productUrl}>
-                    {!imageError ? (
-                        <img
-                            src={(product as LegacyProduct).image || (product as Product).featured_image || ''}
-                            alt={product.name}
-                            className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
-                            onError={() => setImageError(true)}
-                            loading="lazy"
-                        />
-                    ) : (
-                        <div className="w-full h-64 bg-gray-200 flex items-center justify-center">
-                            <span className="text-gray-400">Image non disponible</span>
-                        </div>
-                    )}
-                </Link>
-
-                {/* Overlay Actions */}
-                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300 flex items-center justify-center">
-                    <div className="flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                        <Link
-                            href={productUrl}
-                            className="bg-white p-2 rounded-full shadow-md hover:bg-gray-100 transition-colors"
-                            title="Voir le produit"
-                        >
-                            <Eye className="h-4 w-4 text-gray-600" />
-                        </Link>
-                        <button
-                            onClick={handleToggleWishlist}
-                            className={`p-2 rounded-full shadow-md transition-colors ${
-                                isInWishlist 
-                                    ? 'bg-red-500 text-white hover:bg-red-600' 
-                                    : 'bg-white text-gray-600 hover:bg-gray-100'
-                            }`}
-                            title={isInWishlist ? "Retirer de la liste de souhaits" : "Ajouter à la liste de souhaits"}
-                        >
-                            <Heart className={`h-4 w-4 ${isInWishlist ? 'fill-current' : ''}`} />
-                        </button>
+        <Link 
+            href={route('products.show', { slug: product.slug || 'product', uuid: product.uuid })}
+            className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden hover:shadow-md transition-shadow group relative block"
+        >
+            {/* Image */}
+            <div className="relative aspect-square">
+                {product.featured_image || product.image ? (
+                    <img
+                        src={product.featured_image || product.image}
+                        alt={product.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                ) : (
+                    <div className="w-full h-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                        <ShoppingBag className="h-12 w-12 text-gray-400 dark:text-gray-500" />
                     </div>
-                </div>
-            </div>
-
-            {/* Product Info */}
-            <div className="p-6">
-                <Link href={productUrl}>
-                    <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2 hover:text-blue-600 transition-colors">
-                        {product.name}
-                    </h3>
-                </Link>
+                )}
                 
-                {/* Rating */}
-                {product.rating && (
-                    <div className="flex items-center mb-2">
-                        <div className="flex items-center">
-                            {[...Array(5)].map((_, i) => (
-                                <svg
-                                    key={i}
-                                    className={`w-4 h-4 ${
-                                        i < Math.floor(product.rating!) 
-                                            ? 'text-yellow-400 fill-current' 
-                                            : 'text-gray-300'
-                                    }`}
-                                    viewBox="0 0 20 20"
-                                >
-                                    <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
-                                </svg>
-                            ))}
-                        </div>
-                        {((product as LegacyProduct).reviewCount || (product as Product).review_count) && (
-                            <span className="ml-2 text-sm text-gray-500">
-                                ({(product as LegacyProduct).reviewCount || (product as Product).review_count} avis)
-                            </span>
-                        )}
+                {/* Badges */}
+                {product.badges && product.badges.length > 0 && (
+                    <div className="absolute top-2 left-2 space-y-1">
+                        {product.badges.slice(0, 2).map((badge: string, index: number) => (
+                            <Badge key={index} variant="secondary" className="text-xs">
+                                {badge}
+                            </Badge>
+                        ))}
                     </div>
                 )}
 
-                {/* Price */}
-                <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center space-x-2">
-                        <span className="text-2xl font-bold text-blue-600">
-                            {formatPrice(product.price)}
-                        </span>
-                        {hasDiscount(product.originalPrice, product.price) && (
-                            <span className="text-sm text-gray-500 line-through">
-                                {formatPrice(product.originalPrice)}
-                            </span>
-                        )}
-                    </div>
-                </div>
-
-                {/* Add to Cart Button */}
+                {/* Bouton panier - visible sur mobile, hover sur desktop */}
                 <button
                     onClick={handleAddToCart}
-                    disabled={isLoading}
-                    className={`w-full py-2 px-4 rounded-lg font-medium transition-all duration-200 flex items-center justify-center space-x-2 ${
-                        isLoading
-                            ? 'bg-gray-400 text-white cursor-not-allowed'
-                            : 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md'
-                    }`}
+                    disabled={processing}
+                    className="absolute bottom-2 right-2 bg-white/90 backdrop-blur-sm text-gray-700 p-2 rounded-full shadow-md hover:bg-white hover:shadow-lg transition-all md:opacity-0 md:group-hover:opacity-100"
+                    title={product.has_variants ? "Voir les options" : "Ajouter au panier"}
                 >
-                    {isLoading ? (
-                        <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                            <span>Ajout...</span>
-                        </>
+                    {processing ? (
+                        <div className="animate-spin rounded-full h-3 w-3 border-2 border-gray-700 border-t-transparent" />
+                    ) : product.has_variants ? (
+                        <Eye className="h-3 w-3" />
                     ) : (
-                        <>
-                            <ShoppingCart className="h-4 w-4" />
-                            <span>Ajouter au panier</span>
-                        </>
+                        <ShoppingBag className="h-3 w-3" />
                     )}
                 </button>
             </div>
-        </div>
+
+            {/* Contenu */}
+            <div className="p-4 space-y-3">
+                {/* Rating */}
+                {product.rating && (
+                    <div className="flex items-center gap-1">
+                        <div className="flex">
+                            {[...Array(5)].map((_, i) => (
+                                <Star
+                                    key={i}
+                                    className={cn(
+                                        "h-3 w-3",
+                                        i < Math.floor(product.rating!) 
+                                            ? "fill-yellow-400 text-yellow-400" 
+                                            : "text-gray-300"
+                                    )}
+                                />
+                            ))}
+                        </div>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                            ({product.review_count || product.reviewCount || 0})
+                        </span>
+                    </div>
+                )}
+
+                {/* Nom */}
+                <h3 className="font-medium text-sm line-clamp-2 text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                    {product.name}
+                </h3>
+
+                {/* Prix et stock */}
+                <div className="flex items-center justify-between">
+                    <div className="font-bold text-lg text-blue-600 dark:text-blue-400">
+                        {formatPrice(product.price)}
+                    </div>
+                    
+                    {/* Badge stock faible - bien visible à droite du prix */}
+                    {product.min_stock !== undefined && product.min_stock > 0 && product.min_stock <= 5 && (
+                        <Badge variant="outline" className="text-xs bg-orange-100 text-orange-600 border-orange-200 font-medium">
+                            {product.min_stock === 1 ? 'Dernière pièce' : `Plus que ${product.min_stock}`}
+                        </Badge>
+                    )}
+                </div>
+            </div>
+        </Link>
     );
 }

@@ -38,7 +38,7 @@ import { LanguageSwitcher } from '@/components/LanguageSwitcher'
 import { useTranslation } from '@/hooks/useTranslation'
 import { Breadcrumbs } from '@/components/breadcrumbs'
 import { Toaster } from '@/components/ui/sonner'
-import { SearchWithSuggestions, SearchModalLive } from '@/components/Search'
+import SearchModal from '@/components/Search/SearchModal'
 import { SearchProvider } from '@/contexts/SearchContext'
 import { usePage } from '@inertiajs/react'
 
@@ -143,11 +143,16 @@ export default function EcommerceLayout({
 
             {/* Search Bar - Desktop uniquement */}
             <div className="hidden md:flex flex-1 max-w-lg mx-8">
-              <SearchWithSuggestions 
-                onSearch={handleSearch}
-                placeholder={__('common.search_products')}
-                className="w-full"
-              />
+              <div className="relative w-full">
+                <input
+                  type="text"
+                  placeholder={__('common.search_products')}
+                  className="w-full pl-10 pr-4 py-2 border border-input rounded-lg bg-muted/50 focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                  onClick={() => setIsSearchModalOpen(true)}
+                  readOnly
+                />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              </div>
             </div>
 
             {/* Right Actions */}
@@ -601,7 +606,7 @@ export default function EcommerceLayout({
       </footer>
 
       {/* Search Modal */}
-      <SearchModalLive 
+      <SearchModal 
         isOpen={isSearchModalOpen}
         onClose={() => setIsSearchModalOpen(false)}
         placeholder={__('common.search_placeholder')}

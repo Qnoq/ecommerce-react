@@ -4,6 +4,7 @@ export interface Product {
     id: string;
     uuid: string;
     name: string;
+    slug?: string;
     price: number;
     featured_image?: string;
     images?: string[] | string; // Peut être un JSON string ou un array
@@ -14,6 +15,8 @@ export interface Product {
     sales_count?: number;
     created_at?: string;
     relevance_score?: number;
+    min_stock?: number; // Stock minimum disponible pour les avertissements
+    has_variants?: boolean; // Indique si le produit a des variantes
   }
   
   export interface Category {

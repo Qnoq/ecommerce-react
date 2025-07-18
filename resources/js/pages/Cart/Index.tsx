@@ -27,6 +27,7 @@ import { useCart } from '@/contexts/CartContext'
 
 interface CartItem {
   product_uuid: string
+  item_key: string // Clé unique pour cet item (avec variante)
   quantity: number
   variants: Record<string, string>
   price: string
@@ -75,27 +76,27 @@ export default function CartIndex({ cart, totals }: CartIndexProps) {
   
   const [deleteDialog, setDeleteDialog] = useState<{
     isOpen: boolean
-    productUuid: string | null
+    itemKey: string | null
     productName: string
     action: 'item' | 'all'
   }>({
     isOpen: false,
-    productUuid: null,
+    itemKey: null,
     productName: '',
     action: 'item'
   })
 
-  const handleQuantityChange = (productUuid: string, newQuantity: number) => {
+  const handleQuantityChange = (itemKey: string, newQuantity: number) => {
     if (newQuantity < 0) return
     
     // Trouver l'item pour calculer la différence
-    const item = cart.items.find(item => item.product_uuid === productUuid)
+    const item = cart.items.find(item => item.item_key === itemKey)
     if (!item) return
     
     const quantityDiff = newQuantity - item.quantity
     
     // Utiliser router.patch directement avec les données
-    router.patch(route('cart.update', productUuid), {
+    router.patch(route('cart.update', encodeURIComponent(itemKey)), {
       quantity: newQuantity
     }, {
       preserveScroll: true,
@@ -108,10 +109,10 @@ export default function CartIndex({ cart, totals }: CartIndexProps) {
     })
   }
 
-  const handleRemoveItem = (productUuid: string, productName: string) => {
+  const handleRemoveItem = (itemKey: string, productName: string) => {
     setDeleteDialog({
       isOpen: true,
-      productUuid,
+      itemKey,
       productName,
       action: 'item'
     })
@@ -120,26 +121,26 @@ export default function CartIndex({ cart, totals }: CartIndexProps) {
   const handleClearCart = () => {
     setDeleteDialog({
       isOpen: true,
-      productUuid: null,
+      itemKey: null,
       productName: '',
       action: 'all'
     })
   }
 
   const confirmDelete = () => {
-    if (deleteDialog.action === 'item' && deleteDialog.productUuid) {
+    if (deleteDialog.action === 'item' && deleteDialog.itemKey) {
       // Trouver l'item pour connaître sa quantité
-      const item = cart.items.find(item => item.product_uuid === deleteDialog.productUuid)
+      const item = cart.items.find(item => item.item_key === deleteDialog.itemKey)
       const itemQuantity = item ? item.quantity : 0
       
-      destroy(route('cart.destroy', deleteDialog.productUuid), {
+      destroy(route('cart.destroy', encodeURIComponent(deleteDialog.itemKey)), {
         preserveScroll: true,
         onSuccess: () => {
           // Décrémenter le compteur de la quantité de l'item supprimé
           const newTotal = currentCartQuantity - itemQuantity
           setCurrentCartQuantity(newTotal)
           updateCartCount(newTotal)
-          setDeleteDialog({ isOpen: false, productUuid: null, productName: '', action: 'item' })
+          setDeleteDialog({ isOpen: false, itemKey: null, productName: '', action: 'item' })
         }
       })
     } else if (deleteDialog.action === 'all') {
@@ -149,7 +150,7 @@ export default function CartIndex({ cart, totals }: CartIndexProps) {
           // Remettre le compteur à 0
           setCurrentCartQuantity(0)
           updateCartCount(0)
-          setDeleteDialog({ isOpen: false, productUuid: null, productName: '', action: 'item' })
+          setDeleteDialog({ isOpen: false, itemKey: null, productName: '', action: 'item' })
         }
       })
     }
@@ -195,12 +196,12 @@ export default function CartIndex({ cart, totals }: CartIndexProps) {
           {/* Cart Items */}
           <div className="lg:col-span-2 space-y-4">
             {cart.items.map((item) => (
-              <Card key={item.product_uuid}>
+              <Card key={item.item_key}>
                 <CardContent className="p-6">
                   <div className="flex gap-4">
                     {/* Product Image */}
                     <div className="w-24 h-24 flex-shrink-0">
-                      <Link href={route('products.show', item.product.uuid)}>
+                      <Link href={route('products.show', { slug: item.product.slug, uuid: item.product.uuid })}>
                         {item.product.featured_image ? (
                           <img
                             src={item.product.featured_image}
@@ -220,7 +221,7 @@ export default function CartIndex({ cart, totals }: CartIndexProps) {
                       <div className="flex justify-between items-start mb-2">
                         <div>
                           <Link 
-                            href={route('products.show', item.product.uuid)}
+                            href={route('products.show', { slug: item.product.slug, uuid: item.product.uuid })}
                             className="font-semibold hover:text-primary transition-colors"
                           >
                             {item.product.name}
@@ -234,7 +235,7 @@ export default function CartIndex({ cart, totals }: CartIndexProps) {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleRemoveItem(item.product_uuid, item.product.name)}
+                          onClick={() => handleRemoveItem(item.item_key, item.product.name)}
                           className="text-muted-foreground hover:text-destructive"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -269,7 +270,7 @@ export default function CartIndex({ cart, totals }: CartIndexProps) {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8 rounded-none border-r"
-                            onClick={() => handleQuantityChange(item.product_uuid, item.quantity - 1)}
+                            onClick={() => handleQuantityChange(item.item_key, item.quantity - 1)}
                             disabled={processing || item.quantity <= 1}
                           >
                             <Minus className="h-3 w-3" />
@@ -281,7 +282,7 @@ export default function CartIndex({ cart, totals }: CartIndexProps) {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8 rounded-none border-l"
-                            onClick={() => handleQuantityChange(item.product_uuid, item.quantity + 1)}
+                            onClick={() => handleQuantityChange(item.item_key, item.quantity + 1)}
                             disabled={processing}
                           >
                             <Plus className="h-3 w-3" />

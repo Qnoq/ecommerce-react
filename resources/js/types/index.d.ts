@@ -63,7 +63,9 @@ export interface Product {
     category_id?: string;
     category?: Category;
     stock_quantity?: number;
+    min_stock?: number; // Stock minimum disponible pour les avertissements
     is_active?: boolean;
+    has_variants?: boolean; // Nouveau champ pour les variantes
     created_at?: string;
     updated_at?: string;
 }

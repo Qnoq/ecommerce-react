@@ -69,10 +69,22 @@ class Product extends Model
      */
     protected static function booted()
     {
-        // Générer UUID automatiquement
+        // Générer UUID et slug automatiquement
         static::creating(function ($product) {
             if (empty($product->uuid)) {
                 $product->uuid = (string) Str::uuid();
+            }
+            
+            // Générer le slug automatiquement s'il n'existe pas
+            if (empty($product->slug)) {
+                $product->slug = static::generateUniqueSlug($product->name);
+            }
+        });
+
+        // Régénérer le slug si le nom change
+        static::updating(function ($product) {
+            if ($product->isDirty('name') && empty($product->slug)) {
+                $product->slug = static::generateUniqueSlug($product->name);
             }
         });
 
@@ -84,6 +96,24 @@ class Product extends Model
         static::deleted(function ($product) {
             static::invalidateProductCaches($product);
         });
+    }
+
+    /**
+     * 🚀 Générer un slug unique pour un produit
+     */
+    public static function generateUniqueSlug(string $name): string
+    {
+        $baseSlug = Str::slug($name);
+        $slug = $baseSlug;
+        $counter = 1;
+        
+        // Vérifier l'unicité du slug
+        while (static::where('slug', $slug)->exists()) {
+            $slug = $baseSlug . '-' . $counter;
+            $counter++;
+        }
+        
+        return $slug;
     }
 
     /**

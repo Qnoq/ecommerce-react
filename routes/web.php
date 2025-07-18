@@ -15,24 +15,22 @@ Route::post('/locale', [LocaleController::class, 'change'])->name('locale.change
 Route::middleware(['set.locale'])->group(function () {
     
     // Page d'accueil
-    Route::get('/', function () {
-        return Inertia::render('welcome', [
-            'user' => Auth::user(),
-            'cartCount' => 3,
-            'breadcrumbs' => [
-                ['title' => 'Accueil', 'href' => '/'],
-            ],
-        ]);
-    })->name('home');
+    Route::get('/', [HomeController::class, 'index'])->name('home');
 
     // Routes e-commerce produits - NETTOYÉES
     Route::get('/products', [ProductController::class, 'index'])->name('products.index');
     Route::get('/products/suggestions', [ProductController::class, 'suggestions'])->name('products.suggestions');
-    Route::get('/products/{product}', [ProductController::class, 'show'])->name('products.show');
-
-    // Routes de recherche - UNIFIÉES STYLE AMAZON
+    
+    // Routes de recherche - UNIFIÉES STYLE AMAZON (AVANT les routes produits)
     Route::get('/s', [ProductController::class, 'searchPage'])->name('search.page');
-    Route::get('/api/search', [ProductController::class, 'searchApi'])->name('search.api');
+    Route::get('/search/live', [ProductController::class, 'searchLive'])->name('search.live');
+    
+    // Routes produits style Amazon (sans /products/ - plus clean)
+    Route::get('/{slug}/{uuid}', [ProductController::class, 'show'])->name('products.show');
+    
+    // Routes de fallback pour compatibilité avec les anciens liens
+    Route::get('/products/{slug}/{uuid}', [ProductController::class, 'showByUuid'])->name('products.show.legacy');
+    Route::get('/products/{uuid}', [ProductController::class, 'showByUuid'])->name('products.show.uuid');
 
     // Analytics de recherche - SIMPLIFIÉES
     Route::get('/api/popular-searches', [ProductController::class, 'popularSearches'])->name('api.popular.searches');
@@ -40,8 +38,8 @@ Route::middleware(['set.locale'])->group(function () {
     // Routes panier
     Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
     Route::post('/cart', [CartController::class, 'store'])->name('cart.store');
-    Route::patch('/cart/{productUuid}', [CartController::class, 'update'])->name('cart.update');
-    Route::delete('/cart/{productUuid}', [CartController::class, 'destroy'])->name('cart.destroy');
+    Route::patch('/cart/{itemKey}', [CartController::class, 'update'])->name('cart.update');
+    Route::delete('/cart/{itemKey}', [CartController::class, 'destroy'])->name('cart.destroy');
     Route::delete('/cart', [CartController::class, 'clear'])->name('cart.clear');
     Route::get('/api/cart/count', [CartController::class, 'count'])->name('cart.count');
     

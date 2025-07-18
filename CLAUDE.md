@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## 🎯 PROJET SHOPLUX - CE QUE JE VEUX ACCOMPLIR
 
 ### Vision du projet
-Je développe **ShopLux**, une **plateforme e-commerce moderne et professionnelle** avec Laravel + Inertia + React. L'objectif est de créer une expérience utilisateur exceptionnelle avec toutes les fonctionnalités d'un vrai e-commerce prêt pour la production. Utilise au maximum Inertia, et non pas api fetch.
+Je développe **ShopLux**, une **plateforme e-commerce moderne et professionnelle** avec Laravel + Inertia + React. L'objectif est de créer une expérience utilisateur exceptionnelle avec toutes les fonctionnalités d'un vrai e-commerce prêt pour la production. Utilise au maximum Inertia, et non pas api fetch. Et fais toujours du code DRY.
 
 ### État actuel du projet
 - ✅ **Configuration technique** : Docker, Laravel, Inertia, React, PostgreSQL
