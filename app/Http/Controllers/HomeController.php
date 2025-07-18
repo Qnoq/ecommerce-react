@@ -121,10 +121,12 @@ class HomeController extends Controller
             ->get();
 
         if ($variants->count() > 0) {
-            return $variants->min('stock_quantity');
+            // Retourner 0 seulement si TOUTES les variantes sont épuisées
+            $maxStock = $variants->max('stock_quantity');
+            return $maxStock > 0 ? 1 : 0; // 1 = en stock, 0 = rupture totale
         }
 
-        return $product->stock_quantity;
+        return $product->stock_quantity > 0 ? 1 : 0;
     }
 
     /**

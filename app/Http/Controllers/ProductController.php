@@ -643,11 +643,12 @@ class ProductController extends Controller
             ->get();
             
         if ($variants->count() > 0) {
-            // Si des variantes existent, retourner le stock minimum parmi les variantes
-            return $variants->min('stock_quantity');
+            // Retourner 0 seulement si TOUTES les variantes sont épuisées
+            $maxStock = $variants->max('stock_quantity');
+            return $maxStock > 0 ? 1 : 0; // 1 = en stock, 0 = rupture totale
         } else {
             // Sinon, utiliser le stock du produit de base
-            return $product->stock_quantity;
+            return $product->stock_quantity > 0 ? 1 : 0;
         }
     }
 

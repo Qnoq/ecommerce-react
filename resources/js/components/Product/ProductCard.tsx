@@ -1,8 +1,11 @@
 import { Link, useForm } from '@inertiajs/react';
-import { ShoppingBag, Eye, Star } from 'lucide-react';
+import { ShoppingBag, Star } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { formatPrice } from '@/utils/price';
-import { cn } from '@/lib/utils';
+import VariantSheet from './VariantSheet';
+import { useState } from 'react';
+import { useCart } from '@/contexts/CartContext';
+import { toast } from 'sonner';
 
 interface Props {
     product: any;
@@ -10,6 +13,8 @@ interface Props {
 }
 
 export default function ProductCard({ product, onAddToCart }: Props) {
+    const [isVariantSheetOpen, setIsVariantSheetOpen] = useState(false);
+    const { cartCount, updateCartCount } = useCart();
     const { post, processing } = useForm({
         product_uuid: product.uuid,
         quantity: 1,
@@ -20,14 +25,14 @@ export default function ProductCard({ product, onAddToCart }: Props) {
         e.preventDefault();
         e.stopPropagation();
         
-        if (onAddToCart) {
-            onAddToCart(product.id);
-            return;
-        }
+        // Si le produit a des variantes, ouvrir le VariantSheet
+        const hasVariants = product.has_variants || 
+                           (product.variants && product.variants.length > 1) ||
+                           (product.availableAttributes && Object.keys(product.availableAttributes).length > 0);
         
-        // Si le produit a des variantes, aller à la page produit
-        if (product.has_variants) {
-            window.location.href = route('products.show', { slug: product.slug || 'product', uuid: product.uuid });
+        // TEMPORAIRE : Forcer l'ouverture du VariantSheet jusqu'à ce que le backend envoie les vraies données
+        if (true || hasVariants) {
+            setIsVariantSheetOpen(true);
             return;
         }
         
@@ -35,101 +40,114 @@ export default function ProductCard({ product, onAddToCart }: Props) {
         post(route('cart.store'), {
             preserveScroll: true,
             onSuccess: () => {
-                // Produit ajouté avec succès
+                console.log('🔴 ProductCard - Added to cart successfully');
+                updateCartCount(cartCount + 1);
+                toast.success(`${product.name} ajouté au panier`, {
+                    description: `Quantité : 1`,
+                    action: {
+                        label: "Annuler",
+                        onClick: () => {
+                            // Logique d'annulation
+                        }
+                    }
+                });
+            },
+            onError: (errors) => {
+                console.error('🔴 ProductCard - Error adding to cart:', errors);
+                toast.error("Erreur lors de l'ajout au panier");
             }
         });
     };
 
     return (
-        <Link 
-            href={route('products.show', { slug: product.slug || 'product', uuid: product.uuid })}
-            className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden hover:shadow-md transition-shadow group relative block"
-        >
-            {/* Image */}
-            <div className="relative aspect-square">
-                {product.featured_image || product.image ? (
-                    <img
-                        src={product.featured_image || product.image}
-                        alt={product.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                ) : (
-                    <div className="w-full h-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                        <ShoppingBag className="h-12 w-12 text-gray-400 dark:text-gray-500" />
+        <>
+            <div className="group relative">
+                <Link 
+                    href={route('products.show', { slug: product.slug || 'product', uuid: product.uuid })}
+                    className="block"
+                >
+                    {/* Image */}
+                    <div className="relative aspect-square rounded-lg overflow-hidden bg-muted">
+                        {product.featured_image || product.image ? (
+                            <img
+                                src={product.featured_image || product.image}
+                                alt={product.name}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            />
+                        ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                                <ShoppingBag className="h-12 w-12 text-muted-foreground" />
+                            </div>
+                        )}
+                        
+                        {/* Badges */}
+                        {product.badges && product.badges.length > 0 && (
+                            <div className="absolute top-2 left-2 space-y-1">
+                                {product.badges.slice(0, 2).map((badge: string, index: number) => (
+                                    <Badge key={index} variant="secondary" className="text-xs">
+                                        {badge}
+                                    </Badge>
+                                ))}
+                            </div>
+                        )}
                     </div>
-                )}
-                
-                {/* Badges */}
-                {product.badges && product.badges.length > 0 && (
-                    <div className="absolute top-2 left-2 space-y-1">
-                        {product.badges.slice(0, 2).map((badge: string, index: number) => (
-                            <Badge key={index} variant="secondary" className="text-xs">
-                                {badge}
-                            </Badge>
-                        ))}
-                    </div>
-                )}
 
-                {/* Bouton panier - visible sur mobile, hover sur desktop */}
+                    {/* Contenu */}
+                    <div className="pt-3 space-y-2">
+                        {/* Nom */}
+                        <h3 className="font-medium text-sm line-clamp-2 text-foreground group-hover:text-primary transition-colors">
+                            {product.name}
+                        </h3>
+
+                        {/* Rating style Allbirds - avec une seule étoile */}
+                        {product.rating && (
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                                <span className="font-medium">{product.rating.toFixed(1)}</span>
+                                <span>({product.review_count || product.reviewCount || 0})</span>
+                            </div>
+                        )}
+
+                        {/* Prix */}
+                        <div className="font-semibold text-base text-foreground">
+                            {formatPrice(product.price)}
+                        </div>
+
+                        {/* Badge rupture de stock seulement si toutes les variantes sont épuisées */}
+                        {product.min_stock === 0 && (
+                            <Badge variant="destructive" className="text-xs font-medium">
+                                Rupture de stock
+                            </Badge>
+                        )}
+                    </div>
+                </Link>
+                
+                {/* Bouton panier fixé en bas à droite - style Allbirds */}
                 <button
                     onClick={handleAddToCart}
                     disabled={processing}
-                    className="absolute bottom-2 right-2 bg-white/90 backdrop-blur-sm text-gray-700 p-2 rounded-full shadow-md hover:bg-white hover:shadow-lg transition-all md:opacity-0 md:group-hover:opacity-100"
-                    title={product.has_variants ? "Voir les options" : "Ajouter au panier"}
+                    className="absolute bottom-3 right-3 bg-primary text-primary-foreground w-8 h-8 rounded-full flex items-center justify-center shadow-md hover:shadow-lg transition-all"
+                    title={product.has_variants ? "Choisir options" : "Ajouter au panier"}
                 >
                     {processing ? (
-                        <div className="animate-spin rounded-full h-3 w-3 border-2 border-gray-700 border-t-transparent" />
-                    ) : product.has_variants ? (
-                        <Eye className="h-3 w-3" />
+                        <div className="animate-spin rounded-full h-3 w-3 border-2 border-primary-foreground border-t-transparent" />
                     ) : (
-                        <ShoppingBag className="h-3 w-3" />
+                        <ShoppingBag className="h-4 w-4" />
                     )}
                 </button>
             </div>
 
-            {/* Contenu */}
-            <div className="p-4 space-y-3">
-                {/* Rating */}
-                {product.rating && (
-                    <div className="flex items-center gap-1">
-                        <div className="flex">
-                            {[...Array(5)].map((_, i) => (
-                                <Star
-                                    key={i}
-                                    className={cn(
-                                        "h-3 w-3",
-                                        i < Math.floor(product.rating!) 
-                                            ? "fill-yellow-400 text-yellow-400" 
-                                            : "text-gray-300"
-                                    )}
-                                />
-                            ))}
-                        </div>
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                            ({product.review_count || product.reviewCount || 0})
-                        </span>
-                    </div>
-                )}
-
-                {/* Nom */}
-                <h3 className="font-medium text-sm line-clamp-2 text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                    {product.name}
-                </h3>
-
-                {/* Prix et stock */}
-                <div className="flex items-center justify-between">
-                    <div className="font-bold text-lg text-blue-600 dark:text-blue-400">
-                        {formatPrice(product.price)}
-                    </div>
-                    
-                    {/* Badge stock faible - bien visible à droite du prix */}
-                    {product.min_stock !== undefined && product.min_stock > 0 && product.min_stock <= 5 && (
-                        <Badge variant="outline" className="text-xs bg-orange-100 text-orange-600 border-orange-200 font-medium">
-                            {product.min_stock === 1 ? 'Dernière pièce' : `Plus que ${product.min_stock}`}
-                        </Badge>
-                    )}
-                </div>
-            </div>
-        </Link>
+            {/* VariantSheet */}
+            <VariantSheet
+                isOpen={isVariantSheetOpen}
+                onClose={() => {
+                    console.log('🔴 ProductCard - Closing VariantSheet');
+                    setIsVariantSheetOpen(false);
+                }}
+                product={product}
+                variants={product.variants || []}
+                availableAttributes={product.availableAttributes || {}}
+            />
+        </>
     );
 }

@@ -351,6 +351,11 @@ class Product extends Model
         return $this->hasMany(CartItem::class);
     }
 
+    public function variants(): HasMany
+    {
+        return $this->hasMany(ProductVariant::class);
+    }
+
     // Route model binding par UUID
     public function getRouteKeyName()
     {
@@ -399,5 +404,10 @@ class Product extends Model
     public function getIsOnSaleAttribute()
     {
         return $this->original_price && $this->original_price > $this->price;
+    }
+
+    public function getHasVariantsAttribute()
+    {
+        return $this->variants()->count() > 1;
     }
 }
