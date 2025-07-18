@@ -206,10 +206,10 @@ export default function CartIndex({ cart, totals }: CartIndexProps) {
                           <img
                             src={item.product.featured_image}
                             alt={item.product.name}
-                            className="w-full h-full object-cover rounded-lg hover:opacity-75 transition-opacity"
+                            className="w-full h-full object-cover hover:opacity-75 transition-opacity"
                           />
                         ) : (
-                          <div className="w-full h-full bg-muted rounded-lg flex items-center justify-center">
+                          <div className="w-full h-full bg-muted flex items-center justify-center">
                             <ShoppingBag className="h-8 w-8 text-muted-foreground" />
                           </div>
                         )}
@@ -265,7 +265,7 @@ export default function CartIndex({ cart, totals }: CartIndexProps) {
                         </div>
 
                         {/* Quantity Controls */}
-                        <div className="flex items-center border rounded-lg">
+                        <div className="flex items-center border">
                           <Button
                             variant="ghost"
                             size="icon"
@@ -355,7 +355,7 @@ export default function CartIndex({ cart, totals }: CartIndexProps) {
                 </div>
 
                 {totals.shipping === 0 && (
-                  <div className="mb-4 p-3 bg-green-50 text-green-700 rounded-lg text-sm">
+                  <div className="mb-4 p-3 bg-green-50 text-green-700 text-sm">
                     🎉 Livraison gratuite activée !
                   </div>
                 )}

@@ -47,7 +47,7 @@ export default function ProductVariantSelector({
         key={option.value}
         onClick={() => onVariantChange(attributeName, option.value)}
         className={cn(
-          "w-8 h-8 rounded-full border-2 relative overflow-hidden transition-all",
+          "w-8 h-8 border-2 relative overflow-hidden transition-all",
           isSelected 
             ? "border-primary ring-2 ring-primary/20 scale-110" 
             : "border-muted-foreground/20 hover:border-muted-foreground/40"
@@ -59,7 +59,7 @@ export default function ProductVariantSelector({
       >
         {isSelected && (
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-2 h-2 bg-white rounded-full shadow-sm" />
+            <div className="w-2 h-2 bg-white shadow-sm" />
           </div>
         )}
       </button>

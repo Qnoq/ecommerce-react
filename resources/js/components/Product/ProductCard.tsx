@@ -67,7 +67,7 @@ export default function ProductCard({ product, onAddToCart }: Props) {
                     className="block"
                 >
                     {/* Image */}
-                    <div className="relative aspect-square rounded-lg overflow-hidden bg-muted">
+                    <div className="relative aspect-square overflow-hidden bg-muted">
                         {product.featured_image || product.image ? (
                             <img
                                 src={product.featured_image || product.image}
@@ -80,14 +80,12 @@ export default function ProductCard({ product, onAddToCart }: Props) {
                             </div>
                         )}
                         
-                        {/* Badges */}
+                        {/* Badge */}
                         {product.badges && product.badges.length > 0 && (
-                            <div className="absolute top-2 left-2 space-y-1">
-                                {product.badges.slice(0, 2).map((badge: string, index: number) => (
-                                    <Badge key={index} variant="secondary" className="text-xs">
-                                        {badge}
-                                    </Badge>
-                                ))}
+                            <div className="absolute top-2 left-2">
+                                <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5 rounded-none font-medium">
+                                    {product.badges[0]}
+                                </Badge>
                             </div>
                         )}
                     </div>
@@ -115,7 +113,7 @@ export default function ProductCard({ product, onAddToCart }: Props) {
 
                         {/* Badge rupture de stock seulement si toutes les variantes sont épuisées */}
                         {product.min_stock === 0 && (
-                            <Badge variant="destructive" className="text-xs font-medium">
+                            <Badge variant="destructive" className="text-[10px] px-1.5 py-0.5 rounded-none font-medium">
                                 Rupture de stock
                             </Badge>
                         )}
@@ -126,11 +124,11 @@ export default function ProductCard({ product, onAddToCart }: Props) {
                 <button
                     onClick={handleAddToCart}
                     disabled={processing}
-                    className="absolute bottom-3 right-3 bg-primary text-primary-foreground w-8 h-8 rounded-full flex items-center justify-center shadow-md hover:shadow-lg transition-all"
+                    className="absolute bottom-3 right-3 bg-primary text-primary-foreground w-8 h-8 flex items-center justify-center shadow-md hover:shadow-lg transition-all"
                     title={product.has_variants ? "Choisir options" : "Ajouter au panier"}
                 >
                     {processing ? (
-                        <div className="animate-spin rounded-full h-3 w-3 border-2 border-primary-foreground border-t-transparent" />
+                        <div className="animate-spin h-3 w-3 border-2 border-primary-foreground border-t-transparent" />
                     ) : (
                         <ShoppingBag className="h-4 w-4" />
                     )}

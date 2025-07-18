@@ -125,7 +125,7 @@ export default function SearchPage({
                                     <span>{totalResults} produits trouvés</span>
                                     {isLiveSearching && (
                                         <span className="flex items-center gap-1">
-                                            <div className="animate-spin h-3 w-3 border border-primary border-t-transparent rounded-full"></div>
+                                            <div className="animate-spin h-3 w-3 border border-primary border-t-transparent"></div>
                                             Recherche en cours...
                                         </span>
                                     )}
@@ -149,7 +149,7 @@ export default function SearchPage({
                         
                         {/* Suggestions si peu de résultats */}
                         {suggestions.length > 0 && totalResults < 5 && (
-                            <div className="bg-muted/50 p-4 rounded-lg">
+                            <div className="bg-muted/50 p-4">
                                 <h3 className="font-medium mb-3">
                                     Essayez aussi ces recherches :
                                 </h3>
@@ -171,7 +171,7 @@ export default function SearchPage({
                         {/* Grille de produits */}
                         {products.length > 0 ? (
                             <>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                                <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                                     {products.map((product) => (
                                         <ProductCard 
                                             key={product.uuid} 
@@ -272,7 +272,7 @@ export default function SearchPage({
                                         <Link
                                             key={`category-${category.id || category.slug || index}`}
                                             href={route('products.index', { category: category.slug })}
-                                            className="p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors text-center"
+                                            className="p-4 border border-border hover:bg-muted/50 transition-colors text-center"
                                         >
                                             <span className="font-medium text-sm">
                                                 {category.name}

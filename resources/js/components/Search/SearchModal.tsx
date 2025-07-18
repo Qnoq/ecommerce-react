@@ -151,7 +151,7 @@ export default function SearchModal({
               value={query}
               onChange={handleInputChange}
               placeholder={placeholder}
-              className="w-full pl-10 pr-4 py-3 text-base border border-input rounded-lg bg-muted/50 focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+              className="w-full pl-10 pr-4 py-3 text-base border border-input bg-muted/50 focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
             />
           </div>
 
@@ -180,7 +180,7 @@ export default function SearchModal({
                       <button
                         key={index}
                         onClick={() => handleHistorySearch(search)}
-                        className="w-full text-left p-3 rounded-lg hover:bg-muted/50 transition-colors flex items-center"
+                        className="w-full text-left p-3 hover:bg-muted/50 transition-colors flex items-center"
                       >
                         <Clock className="h-4 w-4 mr-3 text-muted-foreground" />
                         <span className="text-sm">{search}</span>
@@ -200,7 +200,7 @@ export default function SearchModal({
           ) : isSearching ? (
             <div className="flex items-center justify-center py-16">
               <div className="text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                <div className="animate-spin h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
                 <p className="text-muted-foreground">Recherche en cours...</p>
               </div>
             </div>
@@ -211,10 +211,10 @@ export default function SearchModal({
                   <div
                     key={product.uuid}
                     onClick={() => handleProductClick(product)}
-                    className="flex items-center space-x-4 p-4 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                    className="flex items-center space-x-4 p-4 hover:bg-muted/50 cursor-pointer transition-colors"
                   >
                     {/* Image */}
-                    <div className="flex-shrink-0 w-16 h-16 bg-muted rounded-lg overflow-hidden">
+                    <div className="flex-shrink-0 w-16 h-16 bg-muted overflow-hidden">
                       {product.featured_image ? (
                         <img
                           src={product.featured_image}

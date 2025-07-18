@@ -101,7 +101,7 @@ export default function EcommerceLayout({
       {/* Skip link for accessibility */}
       <a 
         href="#main-content" 
-        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 bg-primary text-primary-foreground px-4 py-2 rounded-md z-[200]"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 bg-primary text-primary-foreground px-4 py-2 z-[200]"
       >
         {__('accessibility.skip_to_content')}
       </a>
@@ -133,7 +133,7 @@ export default function EcommerceLayout({
             
             {/* Logo */}
             <Link href="/" className="flex items-center space-x-2 flex-shrink-0">
-              <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary/70 rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center">
                 <span className="text-primary-foreground font-bold text-sm">SL</span>
               </div>
               <span className="text-lg sm:text-xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
@@ -147,7 +147,7 @@ export default function EcommerceLayout({
                 <input
                   type="text"
                   placeholder={__('common.search_products')}
-                  className="w-full pl-10 pr-4 py-2 border border-input rounded-lg bg-muted/50 focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2 border border-input bg-muted/50 focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
                   onClick={() => setIsSearchModalOpen(true)}
                   readOnly
                 />
@@ -197,7 +197,7 @@ export default function EcommerceLayout({
                   {cartCount > 0 && (
                     <Badge 
                       variant="destructive" 
-                      className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
+                      className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center text-xs"
                     >
                       {cartCount > 9 ? '9+' : cartCount}
                     </Badge>
@@ -276,7 +276,7 @@ export default function EcommerceLayout({
                       {user && (
                         <div className="pb-6 border-b">
                           <div className="flex items-center space-x-3 mb-4">
-                            <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
+                            <div className="w-10 h-10 bg-primary flex items-center justify-center">
                               <User className="h-5 w-5 text-primary-foreground" />
                             </div>
                             <div className="min-w-0 flex-1">
@@ -503,7 +503,7 @@ export default function EcommerceLayout({
             {/* Company Info */}
             <div className="space-y-4">
               <div className="flex items-center space-x-2">
-                <div className="w-6 h-6 bg-gradient-to-br from-primary to-primary/70 rounded flex items-center justify-center">
+                <div className="w-6 h-6 bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center">
                   <span className="text-primary-foreground font-bold text-xs">SL</span>
                 </div>
                 <span className="text-lg font-bold">{__('company.company_name')}</span>
@@ -572,7 +572,7 @@ export default function EcommerceLayout({
                 <input
                   type="email"
                   placeholder={__('common.your_email')}
-                  className="w-full h-9 px-3 py-1 text-sm bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                  className="w-full h-9 px-3 py-1 text-sm bg-background border border-input focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                 />
                 <Button className="w-full h-9">
                   {__('common.subscribe')}

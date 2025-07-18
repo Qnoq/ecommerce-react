@@ -315,7 +315,7 @@ export default function ProductShow({ product, variants, availableAttributes, re
               <div className="space-y-4">
                 <div className="flex items-center gap-4">
                   <label className="text-sm font-medium">Quantité:</label>
-                  <div className="flex items-center border rounded-lg">
+                  <div className="flex items-center border">
                     <Button
                       variant="ghost"
                       size="icon"

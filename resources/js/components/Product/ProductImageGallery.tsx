@@ -40,7 +40,7 @@ export default function ProductImageGallery({ images, productName }: ProductImag
   return (
     <div className="space-y-4">
       {/* Main Image */}
-      <div className="relative aspect-square bg-muted rounded-lg overflow-hidden group">
+      <div className="relative aspect-square bg-muted overflow-hidden group">
         <img
           src={displayImages[currentImageIndex]}
           alt={`${productName} - Image ${currentImageIndex + 1}`}
@@ -89,7 +89,7 @@ export default function ProductImageGallery({ images, productName }: ProductImag
               key={index}
               onClick={() => handleThumbnailClick(index)}
               className={cn(
-                "aspect-square bg-muted rounded-md overflow-hidden border-2 transition-all",
+                "aspect-square bg-muted overflow-hidden border-2 transition-all",
                 currentImageIndex === index 
                   ? "border-primary ring-2 ring-primary/20" 
                   : "border-transparent hover:border-muted-foreground/20"

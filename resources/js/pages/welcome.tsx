@@ -329,7 +329,7 @@ export default function Welcome({ featuredProducts = [], categories = [], stats,
                             </Link>
                         </Button>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                    <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         {products.map((product) => {
                             // Normaliser les données pour compatibilité avec ProductCard
                             const normalizedProduct = {

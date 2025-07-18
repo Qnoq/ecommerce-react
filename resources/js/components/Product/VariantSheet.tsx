@@ -157,12 +157,12 @@ export default function VariantSheet({
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent side="bottom" className="h-auto max-h-[80vh] rounded-t-xl">
+      <SheetContent side="bottom" className="h-auto max-h-[80vh]">
         <SheetHeader className="text-left">
           {/* Layout Allbirds : Image à gauche, infos à droite */}
           <div className="flex gap-4 items-start">
             {/* Image du produit - petite à gauche */}
-            <div className="w-20 h-20 rounded-lg overflow-hidden bg-muted flex-shrink-0">
+            <div className="w-20 h-20 overflow-hidden bg-muted flex-shrink-0">
               {product.featured_image ? (
                 <img 
                   src={selectedVariant?.featured_image || product.featured_image} 
@@ -250,7 +250,7 @@ export default function VariantSheet({
           >
             {isAdding ? (
               <div className="flex items-center gap-2">
-                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent" />
                 Ajout en cours...
               </div>
             ) : (

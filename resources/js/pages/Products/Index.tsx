@@ -288,7 +288,7 @@ export default function ProductsIndex() {
 
             {/* Grille des produits */}
             {products.data.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {products.data.map((product) => (
                   <ProductCard
                     key={product.uuid}
